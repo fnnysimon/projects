@@ -1,0 +1,197 @@
+/* ==========================================================
+   TOVA design tokens  v3.0
+   Two layers:
+   1. Primitives (--tova-*): the raw palette. Never used by components.
+   2. Semantics (--color-*, --font-*, --radius-*, --space-*, --shadow-*):
+      what components use.
+   ========================================================== */
+:root {
+  /* ---------- 1. Primitives ---------- */
+  --tova-orange-100: #FFE1D3;
+  --tova-orange-200: #FFC2A6;
+  --tova-orange-300: #FF9A6E;
+  --tova-orange-400: #FF7D45;
+  --tova-orange-500: #FF6B2C;
+  --tova-orange-600: #E2541A;
+  --tova-orange-700: #A93A0D;
+
+  --tova-ink-900: #17161C;
+  --tova-ink-800: #232129;
+  --tova-ink-700: #3A3940;
+  --tova-graphite-300: #B4B3B8;
+  --tova-graphite-600: #6E6D73;
+  --tova-ink-300: #9A98A1;
+
+  --tova-stone-700: #5F5C54;
+  --tova-stone-600: #6B685F;
+  --tova-stone-300: #D9D4C6;
+  --tova-stone-200: #ECE8DD;
+
+  --tova-cream: #FAF8F2;
+  --tova-sand: #F1EDE2;
+  --tova-white: #FFFFFF;
+
+  --tova-olive-100: #EEF0DC;
+  --tova-olive-200: #C9CBB3;
+  --tova-olive-300: #B5B994;
+  --tova-olive-500: #8A8F6A;
+  --tova-olive-700: #6F7353;
+
+  --tova-lime-300: #C8F169;
+  --tova-lime-400: #A9D14C;
+  --tova-lime-900: #3F4A1A;
+
+  --tova-green-700: #1A7A43;
+  --tova-red-700: #C4321F;
+
+  /* ---------- 2. Semantics ---------- */
+  /* Surfaces */
+  --color-bg: var(--tova-cream);
+  --color-bg-translucent: rgb(250 248 242 / .85);
+  --color-surface: var(--tova-white);
+  --color-surface-alt: var(--tova-sand);
+  --color-surface-dark: var(--tova-ink-900);
+  --color-surface-dark-raised: var(--tova-ink-800);
+  --color-surface-accent: var(--tova-orange-700);   /* white text 6.3:1 */
+  --color-field: var(--tova-white);
+  --color-overlay: rgb(23 22 28 / .6);
+  --color-glass: rgb(255 255 255 / .12);
+  --color-hero-scrim: rgb(23 22 28 / .55);          /* behind hero text: worst case olive-100 5.6:1 */
+
+  /* Borders */
+  --color-border: var(--tova-stone-200);            /* decorative dividers only */
+  --color-border-control: var(--tova-stone-600);    /* inputs, secondary buttons: 5.6:1 on white */
+  --color-border-on-accent: rgb(255 255 255 / .28); /* decorative dividers on the order band */
+
+  /* Text: each is ≥ 4.5:1 on the surface named in its comment */
+  --color-text: var(--tova-ink-900);                /* bg, surface, surface-alt */
+  --color-text-secondary: var(--tova-stone-700);    /* bg 6.3:1, surface-alt 5.7:1 */
+  --color-text-muted: var(--tova-stone-600);        /* bg 5.2:1, surface-alt 4.8:1 */
+  --color-text-on-dark: var(--tova-white);
+  --color-text-on-dark-muted: var(--tova-ink-300);  /* surface-dark 6.3:1, raised 5.6:1 */
+  --color-text-on-accent: var(--tova-white);         /* surface-accent 6.3:1 */
+  --color-text-on-accent-muted: var(--tova-orange-100); /* surface-accent 5.1:1 */
+  --color-text-on-media: var(--tova-white);
+  --color-text-on-media-muted: var(--tova-olive-100);  /* on hero scrim ≥ 5.6:1 */
+  --color-text-field: var(--tova-ink-900);
+  --color-text-placeholder: var(--tova-stone-600);
+
+  /* Action and status */
+  --color-action: var(--tova-ink-900);
+  --color-action-hover: var(--tova-ink-800);
+  --color-on-action: var(--tova-white);
+  --color-accent: var(--tova-orange-500);
+  --color-focus: var(--tova-ink-900);                /* light surfaces; dark surfaces override to white */
+  --color-focus-on-dark: var(--tova-white);
+  --color-success: var(--tova-green-700);
+  --color-danger: var(--tova-red-700);
+
+  /* Badges */
+  --color-badge-accent-bg: var(--tova-orange-700);
+  --color-badge-accent-text: var(--tova-white);
+  --color-badge-lime-bg: var(--tova-lime-300);
+  --color-badge-lime-border: var(--tova-lime-400);
+  --color-badge-lime-text: var(--tova-lime-900);
+
+  /* Hero media */
+  --color-hero-light: var(--tova-olive-300);
+  --color-hero: var(--tova-olive-500);
+  --color-hero-dark: var(--tova-olive-700);
+
+  /* Hero robot illustration (product-render style: soft matte shading, no outlines) */
+  --color-robot-shell: var(--tova-white);            /* white shell, top of the gradient */
+  --color-robot-shell-shade: var(--tova-stone-200);  /* white shell, bottom of the gradient */
+  --color-robot-shell-side: var(--tova-stone-300);   /* white parts, side face */
+  --color-robot-dark: var(--tova-ink-700);           /* charcoal parts, light side */
+  --color-robot-dark-shade: var(--tova-ink-800);     /* charcoal parts, dark side */
+  --color-robot-dark-side: var(--tova-ink-900);      /* charcoal parts, side face */
+  --color-robot-plate: var(--tova-ink-700);          /* joint plates */
+  --color-robot-bolt: var(--tova-ink-900);
+  --color-robot-metal: var(--tova-graphite-300);     /* gripper jaws */
+  --color-robot-metal-shade: var(--tova-graphite-600);
+  --color-robot-screen: var(--tova-ink-900);
+  --color-robot-lens-ring: var(--tova-stone-600);
+  --color-robot-eye: var(--tova-white);
+  --color-robot-eye-glow: rgb(255 255 255 / .85);
+  --color-robot-accent: var(--tova-orange-500);      /* antenna tip, core glow: the one Tova accent */
+  --color-robot-light-on: var(--tova-lime-300);      /* camera-in-use light */
+  --color-robot-light-off: var(--tova-stone-600);
+  --color-robot-shadow: rgb(23 22 28 / .18);
+
+  --color-border-on-dark: rgb(255 255 255 / .14);    /* decorative dividers on dark surfaces */
+
+  /* Task scenes (same palette as the robot, on the dark stage) */
+  --color-scene-floor: var(--tova-ink-800);
+  --color-scene-furniture: var(--tova-ink-700);
+  --color-scene-furniture-dark: var(--tova-ink-800);
+  --color-scene-edge: var(--tova-graphite-600);
+  --color-scene-line: rgb(255 255 255 / .16);
+  --color-scene-paper: var(--tova-stone-300);
+  --color-scene-paper-dark: var(--tova-stone-600);
+  --color-scene-cream: var(--tova-cream);
+  --color-scene-fridge: var(--tova-stone-200);
+  --color-scene-item-a: var(--tova-olive-300);
+  --color-scene-item-a-dark: var(--tova-olive-700);
+  --color-scene-item-b: var(--tova-orange-500);
+  --color-scene-item-c: var(--tova-lime-300);
+
+  /* Material (art direction: "product spec sheet") */
+  --color-hero-grid: rgb(255 255 255 / .08);          /* blueprint grid on the hero */
+  --color-accent-shade: rgb(23 22 28 / .22);          /* darkens a corner of the order band: only raises text contrast */
+  --color-rule: rgb(23 22 28 / .85);                  /* spec-sheet rules between items */
+  --texture-grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+
+  /* ---------- 3. shadcn/ui theme ----------
+     The same variable names as shadcn/ui, so its components port as-is.
+     Each one points at a Tova semantic token above: one source of truth.
+     Dark and coloured sections re-map them locally (see "Theme scopes" in ui.css). */
+  --background: var(--color-bg);
+  --foreground: var(--color-text);
+  --card: var(--color-surface);
+  --card-foreground: var(--color-text);
+  --popover: var(--color-surface-dark);
+  --popover-foreground: var(--color-text-on-dark);
+  --primary: var(--color-action);
+  --primary-foreground: var(--color-on-action);
+  --secondary: var(--color-surface-alt);
+  --secondary-foreground: var(--color-text);
+  --muted: var(--color-surface-alt);
+  --muted-foreground: var(--color-text-muted);      /* 4.8:1 on muted */
+  --accent: var(--color-border);                    /* hover background for ghost / outline */
+  --accent-foreground: var(--color-text);
+  --destructive: var(--color-danger);
+  --success: var(--color-success);
+  --border: var(--color-border);
+  --input: var(--color-border-control);             /* darker than shadcn's default: 3:1 for controls */
+  --ring: var(--color-focus);
+
+  /* shadcn radius scale (replaces the old pill + 24px pair) */
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  /* shadcn shadows */
+  --shadow-xs: 0 1px 2px 0 rgb(23 22 28 / .05);
+  --shadow-sm: 0 1px 3px 0 rgb(23 22 28 / .1), 0 1px 2px -1px rgb(23 22 28 / .1);
+  --shadow-lg: 0 10px 15px -3px rgb(23 22 28 / .1), 0 4px 6px -4px rgb(23 22 28 / .1);
+
+  /* Type */
+  --font-display: "Unbounded", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+
+
+  /* Spacing (8pt grid) */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --space-12: 96px;
+
+}
+
+/* Dark mode: planned, not supported yet (see brand.md). */

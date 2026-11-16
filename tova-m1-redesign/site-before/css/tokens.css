@@ -1,0 +1,43 @@
+/* ==========================================================
+   TOVA design tokens  v2.1
+   "Single source of truth. Never hardcode a colour."
+   ========================================================== */
+:root {
+  /* Brand */
+  --tova-orange: #FF6B2C;
+  --tova-orange-dark: #E2541A;
+  --tova-ink: #17161C;
+  --tova-cream: #FAF8F2;
+  --tova-sand: #F1EDE2;
+  --tova-olive: #8A8F6A;
+  --tova-white: #ffffff;
+
+  /* Text */
+  --text-primary: var(--tova-ink);
+  --text-secondary: #8d8a80;
+  --text-muted: #b9b5aa;
+  --text-on-dark: #ffffff;
+
+  /* Type */
+  --font-display: "Unbounded", system-ui, sans-serif;
+  --font-body: "Nunito", system-ui, sans-serif;
+  --font-mono: "Space Mono", ui-monospace, monospace;
+
+  /* Radius */
+  --radius-pill: 999px;
+  --radius-card: 24px;
+
+  /* Spacing (8pt grid) */
+  --space-1: 8px;
+  --space-2: 16px;
+  --space-3: 24px;
+  --space-4: 32px;
+  --space-6: 48px;
+  --space-8: 64px;
+  --space-12: 96px;
+
+  /* Elevation */
+  --shadow-card: 0 1px 2px rgba(23, 22, 28, .06), 0 8px 24px rgba(23, 22, 28, .06);
+}
+
+/* TODO dark mode (Q2) */

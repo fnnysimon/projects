@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Tova</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<!-- ===================== HEADER ===================== -->
+<div class="header">
+  <a class="logo" href="index.html">
+    <span class="logo__mark"></span> tova <span class="logo__tag">M1</span>
+  </a>
+  <div class="nav">
+    <a class="nav__link" href="#tasks">Product</a>
+    <a class="nav__link" href="#skills">Skills</a>
+    <a class="nav__link" href="#specs">Specs</a>
+    <a class="nav__link" href="#faq">FAQ</a>
+    <button class="nav__icon" onclick="openModal('cart')">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#17161C" stroke-width="2"><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/><path d="M2 3h3l3 12h11l2-8H6"/></svg>
+    </button>
+    <a class="btn btn--light" href="#contact">Contact us</a>
+    <a class="btn btn--dark" href="#order">Order &rarr;</a>
+  </div>
+</div>
+
+<!-- ===================== HERO ===================== -->
+<div class="hero">
+  <img class="hero__robot" src="img/tova-m1.svg">
+  <div class="hero__content">
+    <span class="eyebrow">// now shipping fall 2026</span>
+    <div class="badges">
+      <span class="badge badge--orange">Backed by Halden Ventures</span>
+      <span class="badge badge--lime">Built on open ROS 2</span>
+    </div>
+    <h1>TOVA M1</h1>
+    <div class="hero__sub">The most capable home robot for $1,690</div>
+  </div>
+  <div class="hero__scroll">SCROLL &darr;</div>
+</div>
+
+<!-- ===================== TASKS ===================== -->
+<section id="tasks">
+  <div class="section-label">Everyday tasks</div>
+  <div class="section-title">Your extra pair of hands.</div>
+  <div class="section-sub">Tova can support you with day-to-day home tasks, so you can get back to the things you actually like doing.</div>
+
+  <div class="tasks">
+    <div class="task-list" id="taskList">
+      <div class="task-item is-active" data-img="img/tova-m1.svg" data-cap="Unloading groceries, 0.8x speed">Helping in the kitchen</div>
+      <div class="task-item" data-img="img/tova-m1.svg" data-cap="Tidying toys before bedtime">Tidying up</div>
+      <div class="task-item" data-img="img/tova-m1.svg" data-cap="Grabbing a drink from the fridge">Fetching from the fridge</div>
+      <div class="task-item" data-img="img/tova-m1.svg" data-cap="Dishwasher, top rack only (for now)">Loading dishes</div>
+      <div class="task-item" data-img="img/tasks/laundry.webp" data-cap="Folding t-shirts and towels">Folding clothes</div>
+      <div class="task-item" data-img="img/tova-m1.svg" data-cap="Measuring flour, 1g precision">Pouring ingredients</div>
+    </div>
+    <div class="task-stage">
+      <img id="taskImg" src="img/tova-m1.svg">
+      <div class="task-stage__caption" id="taskCap">Unloading groceries, 0.8x speed</div>
+      <div class="task-stage__progress" id="taskBar"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== SKILLS MARKETPLACE ===================== -->
+<section class="market" id="skills">
+  <div class="section-label">Skills Marketplace</div>
+  <div class="section-title">Teach it once. Share it everywhere.</div>
+  <div class="section-sub">Record a demonstration in the Tova Studio app, and your robot learns the task. Publish it, and every Tova can download it.</div>
+
+  <div class="skills">
+    <div class="skill">
+      <div class="skill__icon">🍳</div>
+      <div class="skill__name">Breakfast Prep</div>
+      <div class="skill__meta">by @maria.k · 4.8 ★ · 2.1k installs</div>
+      <div class="skill__price">FREE</div>
+    </div>
+    <div class="skill skill--featured">
+      <div class="skill__icon">👕</div>
+      <div class="skill__name">Laundry Folding Pro</div>
+      <div class="skill__meta">by Tova Labs · 4.9 ★ · 11k installs</div>
+      <div class="skill__price">$4.99</div>
+    </div>
+    <div class="skill">
+      <div class="skill__icon">🪴</div>
+      <div class="skill__name">Plant Care</div>
+      <div class="skill__meta">by @greenthumb · 4.6 ★ · 870 installs</div>
+      <div class="skill__price">$1.99/mo</div>
+    </div>
+    <div class="skill">
+      <div class="skill__icon">🐶</div>
+      <div class="skill__name">Pet Feeder</div>
+      <div class="skill__meta">by @jules · 4.2 ★ · 1.4k installs</div>
+      <div class="skill__price">free</div>
+    </div>
+  </div>
+  <p style="margin-top:40px"><a href="#" style="color:#5d5b64;font-size:13px">click here to see all skills</a></p>
+</section>
+
+<!-- ===================== SPECS ===================== -->
+<section id="specs">
+  <div class="section-label">Affordable and capable</div>
+  <div class="section-title">Hardware that punches above its price.</div>
+
+  <div class="specs">
+    <div class="spec spec--wide">
+      <h4>APP</h4>
+      <p>The Tova Studio desktop app helps you train, operate, and manage your robot.</p>
+    </div>
+    <div class="spec">
+      <h4>ARMS</h4>
+      <p>7+1 DOF, 1.5kg payload per-arm</p>
+      <span class="info">i</span><div class="tooltip">Degrees of freedom: 7 joints per arm plus a gripper.</div>
+    </div>
+    <div class="spec">
+      <h4>LIDAR</h4>
+      <p>12m range, 8–12Hz</p>
+      <span class="info">i</span><div class="tooltip">Angular resolution 0.72° at 10Hz.</div>
+    </div>
+    <div class="spec">
+      <h4>CAMERAS</h4>
+      <p>4× 720p RGB, 30fps</p>
+    </div>
+    <div class="spec">
+      <h4>AUDIO</h4>
+      <p>Speaker + far-field mic</p>
+    </div>
+    <div class="spec">
+      <h4>BATTERY</h4>
+      <p>6–8 hrs</p>
+      <span class="info">i</span><div class="tooltip">Typical mixed use. Charges in 2.5 hours on the dock.</div>
+    </div>
+    <div class="spec spec--wide" style="background:#17161C;color:#fff;border-radius:30px">
+      <h4 style="color:#4a4850">ASSEMBLY</h4>
+      <p>Designed and assembled in Oakland, California.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== PRESS ===================== -->
+<div class="press">
+  <div class="press__row">
+    <div class="quote">"The first home robot I'd actually let near my dishes."<cite>THE CIRCUIT</cite></div>
+    <div class="quote">"Absurdly capable for the price."<cite>HOMETECH WEEKLY</cite></div>
+    <div class="quote">"Tova feels like the iPhone moment for robots."<cite>BUILDER DIGEST</cite></div>
+  </div>
+</div>
+
+<!-- ===================== COMPARE ===================== -->
+<section class="compare">
+  <div class="section-label">Compare</div>
+  <div class="section-title">How M1 stacks up.</div>
+  <table>
+    <tr><td></td><td>Tova M1</td><td>Competitor A</td><td>Competitor B</td></tr>
+    <tr><td>Two arms</td><td class="yes">✓</td><td class="no">✗</td><td class="yes">✓</td></tr>
+    <tr><td>Learns new tasks at home</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+    <tr><td>Open skills marketplace</td><td class="yes">✓</td><td class="no">✗</td><td class="no">✗</td></tr>
+    <tr><td>Works offline</td><td class="no">✗</td><td class="yes">✓</td><td class="no">✗</td></tr>
+    <tr><td>Price</td><td>$1.690</td><td>$4,999</td><td>$24k</td></tr>
+  </table>
+</section>
+
+<!-- ===================== FAQ ===================== -->
+<section id="faq">
+  <div class="section-label">FAQ</div>
+  <div class="section-title">Questions? Answers.</div>
+  <div class="faq-item open">
+    <div class="faq-q" onclick="this.parentNode.classList.toggle('open')">When will my Tova ship?</div>
+    <div class="faq-a">We're starting deliveries this summer, in order of reservation. You'll get an email two weeks before your robot ships.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentNode.classList.toggle('open')">Is it safe around kids and pets?</div>
+    <div class="faq-a">Yes. Tova's arms are torque-limited and stop on contact. Its top speed is 0.6 m/s.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentNode.classList.toggle('open')">Does Tova need the internet?</div>
+    <div class="faq-a">Core navigation runs on-device. Skills and the Studio app require an account and an internet connection.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentNode.classList.toggle('open')">Will the price go up?</div>
+    <div class="faq-a">The launch price is guaranteed for early reservations. After launch, M1 will retail at $1,749.</div>
+  </div>
+  <div class="faq-item">
+    <div class="faq-q" onclick="this.parentNode.classList.toggle('open')">Can I cancel?</div>
+    <div class="faq-a">Yes, anytime before shipping. See terms.</div>
+  </div>
+</section>
+
+<!-- ===================== ORDER ===================== -->
+<div class="order" id="order">
+  <div>
+    <div class="section-label" style="color:#ffd3bd">Reserve yours</div>
+    <div class="order__price">$1690</div>
+    <div class="order__note">Full price, no deposit · Ships Q1 2027 · Join 12,000+ people on the waitlist</div>
+    <br>
+    <a class="cta-big" href="#order">Buy now</a>
+  </div>
+  <div>
+    <form id="orderForm" novalidate>
+      <input id="email" type="email" placeholder="Email">
+      <input id="zip" type="text" placeholder="ZIP code">
+      <div class="form-msg" id="formMsg"></div>
+      <button class="btn btn--orange" type="submit" style="align-self:flex-start;background:#17161C">Submit</button>
+      <div style="font-size:11px;color:#ffc2a6">$99 refundable deposit required*. 8,400 reservations so far.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== FOOTER ===================== -->
+<div class="footer" id="contact">
+  <span>© 2025 TOVA ROBOTICS INC.</span>
+  <span><a href="#">Privacy</a><a href="#">Terms</a><a href="mailto:">hello@</a><a href="#">Careers</a></span>
+</div>
+
+<!-- Cookie banner -->
+<div class="cookie" id="cookie">
+  <span>We use cookies to improve your experience and for marketing. By continuing to browse you agree.</span>
+  <span>
+    <button class="reject" onclick="document.getElementById('cookie').remove()">reject</button>
+    <button class="accept" onclick="document.getElementById('cookie').remove()">Accept all cookies</button>
+  </span>
+</div>
+
+<!-- Modal -->
+<div class="modal-backdrop" id="modal">
+  <div class="modal">
+    <span class="modal__close" onclick="closeModal()">x</span>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script src="js/main.js"></script>
+</body>
+</html>

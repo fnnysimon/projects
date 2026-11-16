@@ -1,0 +1,137 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 560 760">
+  <!-- Tova M1, static copy of the hero robot. Hex values mirror the color-robot tokens in css/tokens.css. -->
+  <style>
+    .s-shell-1{stop-color:#FFFFFF}.s-shell-2{stop-color:#ECE8DD}.s-dark-1{stop-color:#3A3940}.s-dark-2{stop-color:#232129}
+    .s-metal-1{stop-color:#B4B3B8}.s-metal-2{stop-color:#6E6D73}
+    .f-shell{fill:url(#gShell)}.f-side{fill:#D9D4C6}.f-dark{fill:url(#gDark)}.f-dside{fill:#17161C}.f-arm{fill:url(#gArm)}
+    .f-recess{fill:#17161C}.f-plate{fill:#3A3940}.f-bolt{fill:#17161C}.f-metal{fill:url(#gMetal)}.f-screen{fill:#17161C}.f-accent{fill:#FF6B2C}
+    .r-shadow{fill:#17161C;fill-opacity:.18}.r-lens{fill:#17161C;stroke:#6B685F;stroke-width:1.5}
+    .r-eye{fill:#FFFFFF;filter:drop-shadow(0 0 7px rgba(255,255,255,.85))}.r-light{fill:#C8F169}
+    .r-side{transform:translate(6px,5px)}.r-shutter,.r-cam-cover,.r-ping{display:none}.r-ridge{display:none}
+  </style>
+  <defs>
+    <linearGradient id="gShell" x1="0" y1="0" x2="0" y2="1">
+      <stop class="s-shell-1" offset="0"/><stop class="s-shell-2" offset="1"/>
+    </linearGradient>
+    <linearGradient id="gDark" x1="0" y1="0" x2="0" y2="1">
+      <stop class="s-dark-1" offset="0"/><stop class="s-dark-2" offset="1"/>
+    </linearGradient>
+    <linearGradient id="gArm" x1="0" y1="0" x2="1" y2="0">
+      <stop class="s-dark-2" offset="0"/><stop class="s-dark-1" offset=".45"/><stop class="s-dark-2" offset="1"/>
+    </linearGradient>
+    <linearGradient id="gMetal" x1="0" y1="0" x2="1" y2="1">
+      <stop class="s-metal-1" offset="0"/><stop class="s-metal-2" offset="1"/>
+    </linearGradient>
+    <clipPath id="rScreenClip"><rect x="178" y="128" width="204" height="112" rx="14"/></clipPath>
+    <clipPath id="rTorsoClip"><rect x="150" y="296" width="260" height="200" rx="34"/></clipPath>
+    <clipPath id="rCamClip"><rect x="268" y="86" width="24" height="20" rx="4"/></clipPath>
+  </defs>
+  <ellipse class="r-shadow" cx="280" cy="742" rx="150" ry="14"/>
+
+  <!-- Layer 1: base (fixed) -->
+  <g>
+    <rect class="r-side f-dside" x="168" y="680" width="224" height="52" rx="26"/>
+    <rect class="f-dark" x="168" y="680" width="224" height="52" rx="26"/>
+    <rect class="f-plate" x="196" y="688" width="168" height="5" rx="2.5"/>
+  </g>
+
+  <!-- Layer 2: body (pole, neck, arms, torso) -->
+  <g class="r-body">
+    <rect class="f-arm" x="262" y="484" width="36" height="204" rx="6"/>
+    <rect class="f-arm" x="254" y="252" width="52" height="52" rx="8"/>
+
+    <!-- Left arm: hangs, gripper down -->
+    <g transform="rotate(8 132 326)">
+      <rect class="f-arm" x="112" y="336" width="40" height="124" rx="14"/>
+      <rect class="f-arm" x="114" y="470" width="36" height="116" rx="12"/>
+      <rect class="f-recess" x="122" y="500" width="20" height="40" rx="4"/>
+      <rect class="f-plate" x="108" y="584" width="48" height="30" rx="8"/>
+      <path class="f-metal" d="M122 612 C100 634 96 672 116 698 L126 692 C112 670 114 642 132 626 Z"/>
+      <path class="f-metal" d="M142 612 C164 634 168 672 148 698 L138 692 C152 670 150 642 132 626 Z"/>
+      <rect class="f-plate" x="110" y="444" width="44" height="44" rx="12"/>
+      <circle class="f-bolt" cx="132" cy="466" r="2.6"/>
+      <circle class="f-bolt" cx="121" cy="455" r="2.6"/><circle class="f-bolt" cx="143" cy="455" r="2.6"/>
+      <circle class="f-bolt" cx="121" cy="477" r="2.6"/><circle class="f-bolt" cx="143" cy="477" r="2.6"/>
+    </g>
+
+    <!-- Right arm: raised, gripper up (the forearm waves when the camera comes back on) -->
+    <g transform="rotate(-24 428 326)">
+      <rect class="f-arm" x="408" y="336" width="40" height="124" rx="14"/>
+    </g>
+    <g class="r-forearm">
+      <g transform="rotate(16 481 445)">
+        <rect class="f-arm" x="463" y="326" width="36" height="122" rx="12"/>
+        <rect class="f-recess" x="471" y="352" width="20" height="40" rx="4"/>
+        <rect class="f-plate" x="457" y="300" width="48" height="30" rx="8"/>
+        <path class="f-metal" d="M471 302 C449 280 445 242 465 216 L475 222 C461 244 463 272 481 288 Z"/>
+        <path class="f-metal" d="M491 302 C513 280 517 242 497 216 L487 222 C501 244 499 272 481 288 Z"/>
+      </g>
+    </g>
+    <rect class="f-plate" x="459" y="423" width="44" height="44" rx="12"/>
+    <circle class="f-bolt" cx="481" cy="445" r="2.6"/>
+    <circle class="f-bolt" cx="470" cy="434" r="2.6"/><circle class="f-bolt" cx="492" cy="434" r="2.6"/>
+    <circle class="f-bolt" cx="470" cy="456" r="2.6"/><circle class="f-bolt" cx="492" cy="456" r="2.6"/>
+
+    <!-- Torso: white top, charcoal bottom -->
+    <g class="r-side" clip-path="url(#rTorsoClip)">
+      <rect class="f-side" x="150" y="296" width="260" height="84"/>
+      <rect class="f-dside" x="150" y="380" width="260" height="116"/>
+    </g>
+    <g clip-path="url(#rTorsoClip)">
+      <rect class="f-shell" x="150" y="296" width="260" height="84"/>
+      <rect class="f-dark" x="150" y="380" width="260" height="116"/>
+    </g>
+    <g class="r-core">
+      <rect class="f-plate" x="271" y="395" width="18" height="18" rx="5"/>
+      <circle class="f-bolt" cx="280" cy="404" r="5"/>
+    </g>
+    <circle class="f-bolt" cx="176" cy="424" r="5"/><circle class="f-bolt" cx="384" cy="424" r="5"/>
+    <circle class="f-bolt" cx="176" cy="470" r="5"/><circle class="f-bolt" cx="384" cy="470" r="5"/>
+
+    <!-- Shoulder plates, 5-bolt pattern -->
+    <rect class="f-plate" x="106" y="300" width="52" height="56" rx="12"/>
+    <circle class="f-bolt" cx="132" cy="328" r="2.8"/>
+    <circle class="f-bolt" cx="120" cy="315" r="2.8"/><circle class="f-bolt" cx="144" cy="315" r="2.8"/>
+    <circle class="f-bolt" cx="120" cy="341" r="2.8"/><circle class="f-bolt" cx="144" cy="341" r="2.8"/>
+    <rect class="f-plate" x="402" y="300" width="52" height="56" rx="12"/>
+    <circle class="f-bolt" cx="428" cy="328" r="2.8"/>
+    <circle class="f-bolt" cx="416" cy="315" r="2.8"/><circle class="f-bolt" cx="440" cy="315" r="2.8"/>
+    <circle class="f-bolt" cx="416" cy="341" r="2.8"/><circle class="f-bolt" cx="440" cy="341" r="2.8"/>
+  </g>
+
+  <!-- Layer 3: head (turns toward the pointer) -->
+  <g class="r-head">
+    <!-- Antenna: retracted inside the head, pops up when the camera comes back on -->
+    <rect class="f-arm r-ant-move" x="277" y="80" width="6" height="40" rx="3"/>
+    <g class="r-ant-move">
+      <circle class="r-ping" cx="280" cy="84" r="10"/>
+      <circle class="f-accent" cx="280" cy="84" r="10"/>
+    </g>
+
+    <rect class="f-arm" x="138" y="150" width="26" height="76" rx="10"/>
+    <rect class="f-arm" x="396" y="150" width="26" height="76" rx="10"/>
+    <rect class="r-side f-side" x="160" y="70" width="240" height="190" rx="16"/>
+    <rect class="f-shell" x="160" y="70" width="240" height="190" rx="16"/>
+
+    <!-- Camera band: camera, privacy cover, camera-in-use light, screws -->
+    <rect class="f-dark" x="172" y="80" width="216" height="38" rx="6"/>
+    <circle class="f-plate" cx="184" cy="91" r="2.6"/><circle class="f-plate" cx="376" cy="91" r="2.6"/>
+    <rect class="f-screen" x="268" y="86" width="24" height="20" rx="4"/>
+    <circle class="r-lens" cx="280" cy="96" r="5"/>
+    <g clip-path="url(#rCamClip)"><rect class="f-shell r-cam-cover" x="268" y="86" width="24" height="20"/></g>
+    <circle class="r-light" cx="304" cy="96" r="3.5"/>
+
+    <!-- Layer 4: face. The eyes stay still: the head turns, it never stares. -->
+    <g class="r-face">
+      <rect class="f-screen" x="178" y="128" width="204" height="112" rx="14"/>
+      <rect class="r-eye" x="236" y="156" width="26" height="56" rx="13"/>
+      <rect class="r-eye" x="298" y="156" width="26" height="56" rx="13"/>
+      <g clip-path="url(#rScreenClip)">
+        <g class="r-shutter">
+          <rect class="f-shell" x="178" y="128" width="204" height="112" rx="14"/>
+          <path class="r-ridge" d="M196 160 H364 M190 184 H370 M196 208 H364"/>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
