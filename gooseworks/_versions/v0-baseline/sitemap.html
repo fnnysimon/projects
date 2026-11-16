@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Site map (dev)</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<!-- Dev tool: lists every route from site.config.js and every link found on each page.
+     Needs the preview server (node server.js) because it fetches the pages. -->
+<body data-root="" data-page="sitemap">
+<div id="site-header"></div>
+<main>
+  <section class="page-hero">
+    <div class="container">
+      <span class="eyebrow">Dev tool</span>
+      <h1>Site map &amp; page paths</h1>
+      <p class="lead">Every route from <code>site.config.js</code>, and where each page links to. Edit the config, reload this page.</p>
+    </div>
+  </section>
+  <section style="padding-top:0">
+    <div class="container" style="overflow-x:auto">
+      <table class="route-table">
+        <thead><tr><th>Route id</th><th>File</th><th>In nav?</th><th>Links out to (route ids)</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p class="muted" style="margin-top:16px;font-size:14px">Header &amp; footer links are added on every page and not repeated here. "Book a call" buttons use the <code>cta</code> route → <span id="cta"></span>.</p>
+    </div>
+  </section>
+</main>
+<div id="site-footer"></div>
+<script src="site.config.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(async function () {
+  const S = window.SITE, rows = document.getElementById("rows");
+  document.getElementById("cta").textContent = S.CTA.route;
+  const navIds = new Set(S.NAV.map((n) => n.route.split("#")[0]));
+  for (const [id, r] of Object.entries(S.ROUTES)) {
+    let out = "—";
+    try {
+      const html = await (await fetch(r.path)).text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const ids = [...new Set([...doc.querySelectorAll("[data-route]")].map((a) => a.dataset.route === "cta" ? "cta → " + S.CTA.route : a.dataset.route))];
+      out = ids.length ? ids.map((x) => `<a href="${S.href(x.replace(/^cta → /, ""))}">${x}</a>`).join("") : "—";
+    } catch (e) { out = "<span class='muted'>open via node server.js to scan</span>"; }
+    rows.insertAdjacentHTML("beforeend",
+      `<tr><td><b>${id}</b><br><span class="muted">${r.title}</span></td><td><a href="${r.path}"><code>${r.path}</code></a></td><td>${navIds.has(id) ? "✓" : ""}</td><td class="links">${out}</td></tr>`);
+  }
+})();
+</script>
+</body>
+</html>

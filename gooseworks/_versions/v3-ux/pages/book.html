@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book a call · GooseWorks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Doto:wght@700;800;900&family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-root="../" data-page="book">
+<div id="site-header"></div>
+
+<main>
+  <section class="page-hero">
+    <!-- book-grid: desktop = intro + proof on the left, form on the right.
+         mobile = intro, then the form, then the proof. -->
+    <div class="container book-grid">
+      <div class="book-intro">
+        <span class="eyebrow">For ecommerce brands</span>
+        <h1>Find the revenue your funnel is leaking.</h1>
+        <p class="lead">Goose reads your ads, store and email every day and shows you where sales slip away.</p>
+      </div>
+      <div class="book-proof">
+        <div class="stat-row"><div class="stat"><b>15%</b><span>more revenue found in the first 2 weeks</span></div></div>
+        <ul class="checks">
+          <li>Every leak priced in dollars a month</li>
+          <li>Your ads, store, checkout and email read together</li>
+          <li>One clear fix for each, ready for your yes</li>
+        </ul>
+      </div>
+
+      <!-- Demo form: nothing is sent anywhere. Step 1 = brand info, step 2 = pick a slot, step 3 = done -->
+      <form class="form" id="book-form" novalidate>
+        <div data-step="1">
+          <h2 style="font-size:var(--fs-xl);margin-bottom:8px">Book a 15-minute call</h2>
+          <p class="muted" style="margin-bottom:16px">Talk to our team about your funnel. No commitment needed.</p>
+          <div style="display:grid;gap:16px">
+            <label>Work email<input type="email" name="email" placeholder="you@brand.com" required></label>
+            <label>Store website<input type="text" name="site" placeholder="brand.com" required></label>
+            <label>Yearly revenue
+              <select name="revenue"><option>Under $1M</option><option>$1–10M</option><option>$10M+</option></select>
+            </label>
+            <label>Monthly ad spend
+              <select name="spend"><option>Under $10k</option><option>$10–50k</option><option>$50k+</option></select>
+            </label>
+            <button class="btn btn-dark" type="submit" style="justify-content:center">Continue <span class="arrow"></span></button>
+            <small class="muted center">Takes a minute. Then you pick a time.</small>
+          </div>
+        </div>
+        <div data-step="2" hidden>
+          <h3 style="margin-bottom:16px">Pick a time</h3>
+          <div class="slots">
+            <button type="button">Mon 10:00</button><button type="button">Mon 14:30</button><button type="button">Tue 09:00</button>
+            <button type="button">Tue 16:00</button><button type="button">Wed 11:00</button><button type="button">Thu 15:00</button>
+          </div>
+          <button class="btn btn-dark" type="submit" style="justify-content:center;width:100%;margin-top:16px">Confirm <span class="arrow"></span></button>
+        </div>
+        <div data-step="3" hidden class="center">
+          <h3>You're booked ✓</h3>
+          <p class="muted" style="margin:8px 0 16px">This is a demo — nothing was sent.</p>
+          <a class="btn btn-ghost" data-route="caseStudy">Read a customer story meanwhile</a>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section style="background:var(--bg-2)">
+    <div class="container">
+      <h2 style="margin-bottom:32px">What happens next.</h2>
+      <div class="grid-3">
+        <div class="card"><span class="num">01</span><h3>Tell us about your brand</h3><p>Your site, revenue and ad spend. It takes a minute.</p></div>
+        <div class="card"><span class="num">02</span><h3>Pick a time</h3><p>Choose a slot on our calendar that suits you.</p></div>
+        <div class="card"><span class="num">03</span><h3>See your leaks</h3><p>On the call we show where your funnel loses money and what to fix first.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+<script src="../site.config.js"></script>
+<script src="../assets/site.js"></script>
+<script>
+  (function () {
+    const f = document.getElementById("book-form");
+    let step = 1;
+    const show = (n) => f.querySelectorAll("[data-step]").forEach((s) => (s.hidden = +s.dataset.step !== n));
+    f.querySelectorAll(".slots button").forEach((b) => b.addEventListener("click", () => {
+      f.querySelectorAll(".slots button").forEach((x) => x.classList.toggle("active", x === b));
+    }));
+    f.addEventListener("submit", (e) => {
+      e.preventDefault();
+      if (step === 1 && !f.email.checkValidity()) { f.email.focus(); f.email.reportValidity(); return; }
+      if (step === 2 && !f.querySelector(".slots .active")) return;
+      step++; show(step);
+    });
+  })();
+</script>
+</body>
+</html>
