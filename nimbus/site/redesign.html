@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Nimbus — Your team's workspace</title>
+  <meta name="description" content="Nimbus brings docs, tasks and chat together so your team can stop switching tabs and start shipping.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300..800;1,9..144,300..800&family=Instrument+Sans:wght@400..700&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+  <script src="https://unpkg.com/lucide@0.468.0/dist/umd/lucide.min.js"></script>
+  <script>
+    // shadcn/ui-style token mapping. Tokens are RGB channels so /opacity works.
+    const token = (name) => `rgb(var(--${name}) / <alpha-value>)`;
+    tailwind.config = {
+      darkMode: 'media',
+      theme: {
+        extend: {
+          colors: {
+            background: token('background'),
+            foreground: token('foreground'),
+            card: { DEFAULT: token('card'), foreground: token('foreground') },
+            primary: { DEFAULT: token('primary'), foreground: token('primary-foreground') },
+            accent: { DEFAULT: token('accent'), foreground: token('accent-foreground') },
+            muted: { DEFAULT: token('muted'), foreground: token('muted-foreground') },
+            border: token('border'),
+            input: token('input'),
+            ring: token('ring'),
+            destructive: token('destructive'),
+            success: token('success'),
+            spread: { DEFAULT: token('spread'), foreground: token('spread-foreground'), muted: token('spread-muted') },
+          },
+          borderColor: { DEFAULT: token('border') },
+          fontFamily: {
+            display: ['Fraunces', 'Georgia', 'serif'],
+            sans: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
+          },
+          borderRadius: { lg: 'var(--radius)', md: 'calc(var(--radius) - 2px)', sm: 'calc(var(--radius) - 4px)' },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root {
+      --background: 246 243 236;        /* paper  #F6F3EC */
+      --foreground: 22 19 43;           /* ink    #16132B  16.3:1 */
+      --card: 255 253 248;
+      --primary: 67 56 202;             /* indigo #4338CA   7.1:1 */
+      --primary-foreground: 255 255 255;
+      --accent: 250 204 21;             /* marker #FACC15, never text on paper */
+      --accent-foreground: 22 19 43;
+      --muted: 236 231 220;
+      --muted-foreground: 91 87 112;    /* #5B5770  6.2:1 */
+      --border: 217 211 195;            /* hairlines (decorative) */
+      --input: 138 132 153;             /* field borders  3.2:1 */
+      --ring: 67 56 202;
+      --destructive: 180 35 24;         /* 5.9:1 */
+      --success: 15 123 75;             /* 4.8:1 */
+      --spread: 27 22 64;               /* deep indigo spread */
+      --spread-foreground: 246 243 236;
+      --spread-muted: 201 195 221;
+      --shadow: 22 19 43;               /* shadows + backdrop: ink tint on paper */
+      --shadow-a: .25;
+      --radius: 0.375rem;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: 18 16 31;
+        --foreground: 242 238 227;
+        --card: 27 24 48;
+        --primary: 165 180 252;
+        --primary-foreground: 18 16 31;
+        --muted: 35 31 58;
+        --muted-foreground: 179 174 196;
+        --border: 46 42 69;
+        --input: 119 112 143;
+        --ring: 165 180 252;
+        --destructive: 252 165 165;
+        --success: 110 231 183;
+        --spread: 34 28 82;
+        --shadow: 5 4 12;               /* near-black: a shadow, never a pale glow */
+        --shadow-a: .7;
+      }
+    }
+
+    /* Headings never end on a lonely word */
+    h1, h2, h3, blockquote { text-wrap: balance; }
+
+    /* Paper grain, kept subtle */
+    body::before {
+      content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 60; opacity: .05;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    }
+
+    /* Entrance: staggered rise */
+    /* Only movement is animated: content is never invisible, even if animations are paused */
+    @keyframes rise { from { transform: translateY(14px); } to { transform: none; } }
+    .rise { animation: rise .7s cubic-bezier(.2,.7,.2,1) both; animation-delay: calc(var(--i, 0) * 90ms); }
+
+    /* The marker stroke under "finally" draws itself in */
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    .marker path { stroke-dasharray: 420; stroke-dashoffset: 420; animation: draw .9s .55s cubic-bezier(.6,.1,.2,1) forwards; }
+
+    @media (prefers-reduced-motion: reduce) {
+      .rise, .marker path { animation: none !important; }
+      .marker path { stroke-dashoffset: 0; }
+      * { transition-duration: 0s !important; }
+    }
+  </style>
+
+  <!-- Components: one definition each, shadcn/ui anatomy -->
+  <style type="text/tailwindcss">
+    @layer components {
+      .btn {
+        @apply inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold
+               ring-offset-background transition-[background-color,color,transform] duration-150
+               focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2
+               active:scale-[.98] disabled:pointer-events-none disabled:opacity-60 [&_svg]:size-4 [&_svg]:shrink-0;
+      }
+      .btn-md      { @apply h-11 px-5; }
+      .btn-lg      { @apply h-12 px-6 text-base; }
+      .btn-icon    { @apply h-11 w-11; }
+      .btn-primary { @apply bg-foreground text-background hover:bg-primary hover:text-primary-foreground; }
+      .btn-outline { @apply border border-foreground/80 bg-transparent hover:bg-foreground hover:text-background; }
+      .btn-ghost   { @apply hover:bg-muted; }
+      .btn-link    { @apply h-auto px-0 text-primary underline decoration-primary/40 underline-offset-4 hover:decoration-primary; }
+
+      .eyebrow { @apply text-xs font-semibold uppercase tracking-[.16em] text-primary; }
+      .label   { @apply text-sm font-semibold; }
+      .input {
+        @apply h-12 w-full rounded-md border border-input bg-card px-4 text-base text-foreground
+               placeholder:text-muted-foreground ring-offset-background
+               focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2
+               aria-[invalid=true]:border-destructive aria-[invalid=true]:border-2;
+      }
+      .rule { @apply border-t border-foreground/15; }
+      .paper-card { @apply rounded-lg border bg-card shadow-[0_1px_0_rgb(var(--shadow)/.06),0_12px_32px_-12px_rgb(var(--shadow)/var(--shadow-a))]; }
+      .avatar { @apply inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold; }
+    }
+    @layer base {
+      /* Text links get the same focus ring as buttons */
+      a:not(.btn) { @apply rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background; }
+    }
+  </style>
+</head>
+<body class="min-h-screen overflow-x-hidden bg-background font-sans text-foreground antialiased selection:bg-accent selection:text-accent-foreground">
+
+  <a href="#main" class="btn btn-md btn-primary fixed left-4 top-3 z-[70] -translate-y-20 focus:translate-y-0">Skip to content</a>
+
+  <!-- Masthead -->
+  <header class="sticky top-0 z-50 border-b border-foreground/10 bg-background/90 backdrop-blur">
+    <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+      <a href="#" class="font-display text-2xl font-semibold tracking-tight" aria-label="Nimbus, home">nimbus<span class="text-primary">.</span></a>
+
+      <nav aria-label="Main" class="flex items-center gap-2 md:gap-7">
+        <ul id="menu" class="absolute inset-x-0 top-16 hidden flex-col gap-1 border-b border-foreground/10 bg-background px-4 pb-4 md:static md:flex md:flex-row md:items-center md:gap-7 md:border-0 md:bg-transparent md:p-0">
+          <li><a href="#features" class="block py-2 text-sm font-medium hover:text-primary">Features</a></li>
+          <li><a href="#pricing" class="block py-2 text-sm font-medium hover:text-primary">Pricing</a></li>
+          <li><a href="#letter" data-focus-letter class="block py-2 text-sm font-medium hover:text-primary">Newsletter</a></li>
+          <li><a href="index.html" class="block py-2 text-sm font-medium text-muted-foreground hover:text-primary">Old version</a></li>
+        </ul>
+        <!-- Always visible, on mobile too: the main job is one tap away from anywhere -->
+        <!-- Hidden while the hero form is on screen (it already offers the trial); appears once scrolled past -->
+        <button type="button" id="header-cta" data-open-trial="Team" class="btn btn-md btn-primary invisible opacity-0 transition-[opacity,visibility] duration-200 motion-reduce:transition-none">Start free</button>
+        <button id="menu-btn" class="btn btn-icon btn-ghost md:hidden" aria-expanded="false" aria-controls="menu" aria-label="Open menu">
+          <i data-lucide="menu"></i>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- Hero -->
+    <section class="mx-auto grid max-w-6xl gap-14 px-4 pb-20 pt-14 sm:px-6 md:grid-cols-12 md:gap-8 md:pb-28 md:pt-20" aria-labelledby="hero-title">
+      <div class="md:col-span-7">
+        <p class="eyebrow rise" style="--i:0">Vol. 4 &nbsp;·&nbsp; Nimbus v4 is here</p>
+        <h1 id="hero-title" class="rise mt-6 font-display text-[2.75rem] font-medium leading-[1.02] tracking-[-.02em] sm:text-6xl lg:text-[5.25rem]" style="--i:1; font-variation-settings:'opsz' 144">
+          Your team's workspace,
+          <span class="relative isolate inline-block whitespace-nowrap italic text-primary">
+            finally
+            <svg class="marker absolute -bottom-2 left-0 -z-10 h-5 w-full" viewBox="0 0 300 20" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M4 14 C 70 6, 160 4, 296 10" fill="none" stroke="rgb(var(--accent))" stroke-width="12" stroke-linecap="round"/>
+            </svg>
+          </span>
+          in one place.
+        </h1>
+        <p class="rise mt-7 max-w-xl text-lg leading-relaxed text-muted-foreground" style="--i:2">
+          Nimbus brings docs, tasks and chat together so your team can stop switching tabs and start shipping.
+        </p>
+        <!-- Trial signup lives in the hero: email + one click, no detour via pricing -->
+        <div class="rise mt-9 max-w-xl" style="--i:3">
+          <form id="hero-form" novalidate class="space-y-2">
+            <label for="hero-email" class="label">Work email</label>
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <input id="hero-email" name="email" type="email" autocomplete="email" inputmode="email" required
+                     class="input" placeholder="name@company.com" aria-describedby="hero-help hero-error">
+              <button type="submit" aria-disabled="false" class="btn btn-lg btn-primary aria-disabled:cursor-wait aria-disabled:hover:bg-foreground aria-disabled:hover:text-background">
+                <span data-idle class="inline-flex items-center gap-2">Start free <i data-lucide="arrow-right"></i></span>
+                <span data-busy class="hidden items-center gap-2"><i data-lucide="loader-circle" class="animate-spin"></i>Starting…</span>
+              </button>
+            </div>
+            <p id="hero-help" class="text-sm text-muted-foreground">14 days of the Team plan, no card needed.</p>
+            <!-- Exits for people who want to look before giving an email -->
+            <p class="flex flex-wrap gap-x-5 gap-y-1 pt-1 text-sm">
+              <a href="#pricing" class="btn btn-link min-h-6 font-semibold">See pricing first</a>
+              <a href="#features" class="btn btn-link min-h-6 font-semibold">See how it works</a>
+            </p>
+            <div id="hero-error" data-error class="hidden flex-wrap items-start gap-x-2 gap-y-1 text-sm font-medium text-destructive">
+              <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><span data-msg class="min-w-0 flex-1"></span>
+              <button type="button" data-retry class="btn btn-link hidden min-h-6 font-semibold">Try again</button>
+            </div>
+          </form>
+
+          <div id="hero-success" class="hidden items-start gap-3 rounded-md border-2 border-success/60 bg-card p-4" tabindex="-1">
+            <i data-lucide="mail-check" class="mt-0.5 h-5 w-5 shrink-0 text-success"></i>
+            <div>
+              <p class="font-semibold">Check your inbox.</p>
+              <p class="mt-1 text-sm text-muted-foreground">We sent a link to <b data-email class="text-foreground"></b> to finish setting up your Team workspace.</p>
+              <div data-upsell class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+                <span>Want the monthly Nimbus Letter too? <span class="block text-xs text-muted-foreground">One email a month. Unsubscribe in one click.</span></span>
+                <button type="button" class="btn h-9 px-3 btn-outline" data-subscribe-letter>Yes, add me</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product spread (illustration) -->
+      <figure class="rise relative mx-auto h-[380px] w-full max-w-[420px] md:col-span-5 md:h-auto md:max-w-none" style="--i:4">
+        <figcaption class="sr-only">Illustration: a Nimbus doc where a highlighted sentence becomes a task, with a chat thread beside it.</figcaption>
+        <div aria-hidden="true">
+          <!-- Doc -->
+          <div class="paper-card absolute left-0 right-6 top-0 p-6">
+            <p class="eyebrow text-[10px]">Doc · Q4 launch plan</p>
+            <p class="mt-3 font-display text-2xl font-medium leading-tight">Launch week, day by day</p>
+            <p class="mt-3 text-sm leading-relaxed text-muted-foreground">
+              Monday we open the waitlist.
+              <mark class="rounded-sm bg-accent/70 px-0.5 text-accent-foreground">Tuesday the pricing page goes live</mark>,
+              then press on Thursday.
+            </p>
+            <div class="mt-4 flex items-start gap-2 rounded-md bg-muted p-3 text-xs">
+              <span class="avatar bg-primary text-primary-foreground">MJ</span>
+              <span class="pt-1.5"><b>MJ</b> turned this into a task</span>
+            </div>
+          </div>
+          <!-- Task -->
+          <div class="paper-card absolute -left-2 top-[230px] w-[230px] -rotate-3 p-4 md:-left-8">
+            <p class="eyebrow text-[10px]">Tasks · This week</p>
+            <ul class="mt-3 space-y-2 text-sm">
+              <li class="flex items-center gap-2"><span class="inline-flex h-4 w-4 items-center justify-center rounded-sm bg-foreground text-background"><i data-lucide="check" class="h-3 w-3"></i></span><span class="text-muted-foreground line-through">Draft launch email</span></li>
+              <li class="flex items-center gap-2"><span class="h-4 w-4 rounded-sm border-2 border-foreground/70"></span>Publish pricing page</li>
+              <li class="flex items-center gap-2"><span class="h-4 w-4 rounded-sm border-2 border-foreground/70"></span>Book press call</li>
+            </ul>
+          </div>
+          <!-- Chat -->
+          <div class="paper-card absolute right-0 top-[268px] w-[220px] rotate-2 p-4">
+            <p class="eyebrow text-[10px]">Thread · Pricing page</p>
+            <div class="mt-3 flex items-start gap-2 text-sm">
+              <span class="avatar bg-accent text-accent-foreground">SA</span>
+              <p class="rounded-lg rounded-tl-none bg-muted px-3 py-2">It's live — ready for review.</p>
+            </div>
+          </div>
+        </div>
+      </figure>
+    </section>
+
+    <!-- Features as chapters -->
+    <section id="features" class="mx-auto max-w-6xl px-4 pb-24 sm:px-6" aria-labelledby="features-title">
+      <div class="rule flex flex-wrap items-baseline justify-between gap-4 pt-6">
+        <h2 id="features-title" class="font-display text-3xl font-medium tracking-tight sm:text-4xl">Three tools. One thread.</h2>
+        <p class="eyebrow">Contents</p>
+      </div>
+
+      <ol class="mt-4">
+        <li class="rule grid gap-6 py-10 md:grid-cols-12 md:gap-8">
+          <span class="font-display text-6xl font-light italic leading-none text-primary md:col-span-2" aria-hidden="true">01</span>
+          <div class="md:col-span-5">
+            <h3 class="flex items-center gap-3 font-display text-2xl font-medium"><i data-lucide="file-text" class="h-5 w-5 text-primary"></i>Docs that keep their context</h3>
+            <p class="mt-3 leading-relaxed text-muted-foreground">Write together in real time. Every decision stays next to the comments and versions that led to it.</p>
+          </div>
+          <ul class="space-y-2 text-sm md:col-span-4 md:col-start-9 md:pt-2">
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Live cursors and editing</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Comments and @mentions</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Full version history</li>
+          </ul>
+        </li>
+        <li class="rule grid gap-6 py-10 md:grid-cols-12 md:gap-8">
+          <span class="font-display text-6xl font-light italic leading-none text-primary md:col-span-2" aria-hidden="true">02</span>
+          <div class="md:col-span-5">
+            <h3 class="flex items-center gap-3 font-display text-2xl font-medium"><i data-lucide="square-check-big" class="h-5 w-5 text-primary"></i>Tasks born from the doc</h3>
+            <p class="mt-3 leading-relaxed text-muted-foreground">Highlight a sentence, make it a task. Boards, lists and timelines stay linked to where the idea started.</p>
+          </div>
+          <ul class="space-y-2 text-sm md:col-span-4 md:col-start-9 md:pt-2">
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Boards, lists and timelines</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Owners and due dates</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Linked back to the source doc</li>
+          </ul>
+        </li>
+        <li class="rule grid gap-6 py-10 md:grid-cols-12 md:gap-8">
+          <span class="font-display text-6xl font-light italic leading-none text-primary md:col-span-2" aria-hidden="true">03</span>
+          <div class="md:col-span-5">
+            <h3 class="flex items-center gap-3 font-display text-2xl font-medium"><i data-lucide="message-square" class="h-5 w-5 text-primary"></i>Chat where the work is</h3>
+            <p class="mt-3 leading-relaxed text-muted-foreground">Threads sit beside the doc or task they're about, so nobody has to ask "which file?" again.</p>
+          </div>
+          <ul class="space-y-2 text-sm md:col-span-4 md:col-start-9 md:pt-2">
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Threads on any block</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Notifications that respect focus</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Search across every thread</li>
+          </ul>
+        </li>
+      </ol>
+    </section>
+
+    <!-- Manifesto spread -->
+    <section class="bg-spread text-spread-foreground" aria-label="Our idea">
+      <div class="mx-auto grid max-w-6xl gap-6 px-4 py-20 sm:px-6 md:grid-cols-12 md:py-28">
+        <p class="eyebrow text-accent md:col-span-3 md:pt-4">The idea</p>
+        <blockquote class="font-display text-4xl font-light leading-[1.1] tracking-tight sm:text-5xl md:col-span-9" style="font-variation-settings:'opsz' 144">
+          One place for the work — <em class="text-accent">and for every conversation about it.</em>
+        </blockquote>
+      </div>
+    </section>
+
+    <!-- Pricing -->
+    <section id="pricing" class="mx-auto max-w-6xl px-4 py-24 sm:px-6" aria-labelledby="pricing-title">
+      <div class="flex flex-wrap items-end justify-between gap-6">
+        <div>
+          <p class="eyebrow">Pricing</p>
+          <h2 id="pricing-title" class="mt-3 font-display text-4xl font-medium tracking-tight sm:text-5xl">Simple, honest pricing.</h2>
+        </div>
+        <div class="flex items-center gap-3 text-sm font-medium">
+          <span id="billing-label">Bill yearly</span>
+          <button id="billing" role="switch" aria-checked="false" aria-labelledby="billing-label"
+            class="relative inline-flex h-7 w-12 shrink-0 items-center rounded-full border-2 border-foreground bg-transparent transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-background aria-checked:bg-foreground">
+            <span class="ml-0.5 h-5 w-5 rounded-full bg-foreground transition-transform [[aria-checked=true]>&]:translate-x-5 [[aria-checked=true]>&]:bg-background"></span>
+          </button>
+          <span class="rounded-sm bg-accent px-1.5 py-0.5 text-xs font-bold text-accent-foreground">2 months free</span>
+        </div>
+      </div>
+
+      <div class="mt-12 grid border-y border-foreground/80 md:grid-cols-3">
+        <article class="flex flex-col p-6 md:p-8">
+          <h3 class="mt-5 font-display text-2xl font-medium">Starter</h3>
+          <p class="mt-1 text-sm text-muted-foreground">For individuals trying things out.</p>
+          <p class="mt-6 font-display text-5xl font-medium tabular-nums">$0<span class="font-sans text-sm font-normal text-muted-foreground"> /month</span></p>
+          <p class="mt-1 h-5 text-xs text-muted-foreground">Free forever</p>
+          <ul class="mt-5 flex-1 space-y-2 text-sm">
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>3 projects</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>1 GB storage</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Community support</li>
+          </ul>
+          <button type="button" data-open-trial="Starter" class="btn btn-md btn-outline mt-8">Start with Starter</button>
+        </article>
+
+        <article class="relative flex flex-col border-y border-foreground/15 bg-card p-6 md:border-x md:border-y-0 md:p-8">
+          <p class="absolute -top-px left-0 right-0 bg-accent py-1 text-center text-xs font-bold uppercase tracking-[.16em] text-accent-foreground">Most teams pick this</p>
+          <h3 class="mt-5 font-display text-2xl font-medium">Team</h3>
+          <p class="mt-1 text-sm text-muted-foreground">For teams shipping every week.</p>
+          <p class="mt-6 font-display text-5xl font-medium tabular-nums"><span data-price="12" data-yearly="10">$12</span><span class="font-sans text-sm font-normal text-muted-foreground"> /user /month</span></p>
+          <p class="mt-1 h-5 text-xs text-muted-foreground" data-billing-note aria-live="polite">Billed monthly</p>
+          <ul class="mt-5 flex-1 space-y-2 text-sm">
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Unlimited projects</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>100 GB storage</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Priority support</li>
+          </ul>
+          <button type="button" data-open-trial="Team" class="btn btn-md btn-primary mt-8">Start a 14-day free trial</button>
+        </article>
+
+        <article class="flex flex-col p-6 md:p-8">
+          <h3 class="mt-5 font-display text-2xl font-medium">Enterprise</h3>
+          <p class="mt-1 text-sm text-muted-foreground">For organisations with extra needs.</p>
+          <p class="mt-6 font-display text-5xl font-medium italic">Let's talk</p>
+          <p class="mt-1 h-5 text-xs text-muted-foreground">Volume pricing</p>
+          <ul class="mt-5 flex-1 space-y-2 text-sm">
+            <!-- Security items use the shield icon: same list, still a visible trust signal -->
+            <li class="flex gap-2"><i data-lucide="shield-check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>SSO/SAML and audit logs</li>
+            <li class="flex gap-2"><i data-lucide="shield-check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Security review on request</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>Unlimited storage</li>
+            <li class="flex gap-2"><i data-lucide="check" class="mt-0.5 h-4 w-4 shrink-0 text-primary"></i>A dedicated account manager</li>
+          </ul>
+          <button type="button" data-open-contact class="btn btn-md btn-outline mt-8">Contact sales</button>
+        </article>
+      </div>
+      <p class="mt-4 text-sm text-muted-foreground">Cancel anytime: you keep access until the end of your billing period.</p>
+    </section>
+
+    <!-- Newsletter -->
+    <section id="letter" class="mx-auto max-w-6xl px-4 pb-24 sm:px-6" aria-labelledby="letter-title">
+      <div class="paper-card grid gap-8 p-6 sm:p-10 md:grid-cols-12">
+        <div class="md:col-span-5">
+          <p class="eyebrow">Newsletter</p>
+          <h2 id="letter-title" class="mt-3 font-display text-3xl font-medium tracking-tight sm:text-4xl">The Nimbus Letter</h2>
+          <p class="mt-3 leading-relaxed text-muted-foreground">One email a month on how teams work better together. No spam — unsubscribe in one click.</p>
+        </div>
+
+        <div class="md:col-span-6 md:col-start-7">
+          <form id="signup" novalidate class="space-y-2" aria-describedby="email-help">
+            <label for="email" class="label">Work email</label>
+            <div class="flex flex-col gap-3 sm:flex-row">
+              <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required
+                     class="input" placeholder="name@company.com" aria-describedby="email-help email-error">
+              <!-- aria-disabled (not disabled) while busy, so keyboard focus stays on the button -->
+              <button id="submit" type="submit" aria-disabled="false" class="btn btn-lg btn-primary sm:w-auto aria-disabled:cursor-wait aria-disabled:hover:bg-foreground aria-disabled:hover:text-background">
+                <span data-idle class="inline-flex items-center gap-2">Subscribe <i data-lucide="arrow-right"></i></span>
+                <span data-busy class="hidden items-center gap-2"><i data-lucide="loader-circle" class="animate-spin"></i>Subscribing…</span>
+              </button>
+            </div>
+            <p id="email-help" class="text-sm text-muted-foreground">We'll only use it to send the letter.</p>
+            <div id="email-error" data-error class="hidden flex-wrap items-start gap-x-2 gap-y-1 text-sm font-medium text-destructive">
+              <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><span data-msg class="min-w-0 flex-1"></span>
+              <button type="button" data-retry class="btn btn-link hidden min-h-6 pl-6 font-semibold sm:pl-0">Try again</button>
+            </div>
+          </form>
+
+          <div id="signup-success" class="hidden items-start gap-3 rounded-md border-2 border-success/60 p-4" tabindex="-1">
+            <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-success"></i>
+            <div>
+              <p class="font-semibold">You're on the list.</p>
+              <p class="mt-1 text-sm text-muted-foreground">The next letter lands on the first Monday of the month. <button type="button" class="btn btn-link min-h-6 font-semibold" data-reset>Use another email</button></p>
+            </div>
+          </div>
+
+          <!-- Screen-reader announcements for form state changes -->
+          <p id="announcer" class="sr-only" role="status" aria-live="polite"></p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="overflow-hidden border-t border-foreground/15">
+    <div class="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 pt-10 text-sm sm:px-6">
+      <p class="text-muted-foreground">© 2026 Nimbus Inc.</p>
+      <ul class="flex gap-6">
+        <li><a href="#" class="underline-offset-4 hover:underline">Privacy</a></li>
+        <li><a href="#" class="underline-offset-4 hover:underline">Terms</a></li>
+        <li><a href="#" class="underline-offset-4 hover:underline">Cookies</a></li>
+      </ul>
+    </div>
+    <p class="select-none text-center font-display text-[26vw] font-semibold leading-[.8] tracking-[-.05em] text-foreground/[.07]" aria-hidden="true">nimbus.</p>
+  </footer>
+
+  <!-- Trial dialog: opened from the header and the pricing plans, plan preselected -->
+  <dialog id="trial-dialog" aria-labelledby="trial-title"
+          class="w-[min(92vw,30rem)] rounded-lg border border-foreground/20 bg-card p-0 text-foreground shadow-2xl backdrop:bg-[rgb(var(--shadow)/.5)] backdrop:backdrop-blur-sm">
+    <div class="p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="eyebrow" data-plan-eyebrow>Team plan · 14-day trial</p>
+          <h2 id="trial-title" class="mt-2 font-display text-3xl font-medium tracking-tight" data-plan-title>Start your free trial</h2>
+        </div>
+        <button type="button" data-close class="btn btn-icon btn-ghost -mr-3 -mt-3" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+
+      <form id="trial-form" novalidate class="mt-6 space-y-2">
+        <label for="trial-email" class="label">Work email</label>
+        <input id="trial-email" name="email" type="email" autocomplete="email" inputmode="email" required
+               class="input" placeholder="name@company.com" aria-describedby="trial-help trial-error">
+        <p id="trial-help" class="text-sm text-muted-foreground">No card needed. You can change plan anytime. <a href="#pricing" data-to-pricing class="btn btn-link min-h-6 font-semibold">Compare plans</a></p>
+        <div id="trial-error" data-error class="hidden flex-wrap items-start gap-x-2 gap-y-1 text-sm font-medium text-destructive">
+          <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><span data-msg class="min-w-0 flex-1"></span>
+          <button type="button" data-retry class="btn btn-link hidden min-h-6 font-semibold">Try again</button>
+        </div>
+        <button type="submit" aria-disabled="false" class="btn btn-lg btn-primary mt-4 w-full aria-disabled:cursor-wait aria-disabled:hover:bg-foreground aria-disabled:hover:text-background">
+          <span data-idle class="inline-flex items-center gap-2"><span data-plan-cta>Start free trial</span> <i data-lucide="arrow-right"></i></span>
+          <span data-busy class="hidden items-center gap-2"><i data-lucide="loader-circle" class="animate-spin"></i>Starting…</span>
+        </button>
+      </form>
+
+      <div id="trial-success" class="mt-6 hidden items-start gap-3 rounded-md border-2 border-success/60 p-4" tabindex="-1">
+        <i data-lucide="mail-check" class="mt-0.5 h-5 w-5 shrink-0 text-success"></i>
+        <div>
+          <p class="font-semibold">Check your inbox.</p>
+          <p class="mt-1 text-sm text-muted-foreground">We sent a link to <b data-email class="text-foreground"></b> to finish setting up your <span data-plan-name>Team</span> workspace.</p>
+          <div data-upsell class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-2 text-sm">
+            <span>Want the monthly Nimbus Letter too? <span class="block text-xs text-muted-foreground">One email a month. Unsubscribe in one click.</span></span>
+            <button type="button" class="btn h-9 px-3 btn-outline" data-subscribe-letter>Yes, add me</button>
+          </div>
+          <button type="button" data-close class="btn btn-md btn-ghost -ml-3 mt-3">Close</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Contact sales dialog -->
+  <dialog id="contact-dialog" aria-labelledby="contact-title"
+          class="w-[min(92vw,30rem)] rounded-lg border border-foreground/20 bg-card p-0 text-foreground shadow-2xl backdrop:bg-[rgb(var(--shadow)/.5)] backdrop:backdrop-blur-sm">
+    <div class="p-6 sm:p-8">
+      <div class="flex items-start justify-between gap-4">
+        <div>
+          <p class="eyebrow">Enterprise</p>
+          <h2 id="contact-title" class="mt-2 font-display text-3xl font-medium tracking-tight">Talk to sales</h2>
+          <p class="mt-2 text-sm text-muted-foreground">Ask us about SSO/SAML, audit logs, security reviews and volume pricing.</p>
+        </div>
+        <button type="button" data-close class="btn btn-icon btn-ghost -mr-3 -mt-3" aria-label="Close"><i data-lucide="x"></i></button>
+      </div>
+
+      <form id="contact-form" novalidate class="mt-6 space-y-2">
+        <label for="contact-email" class="label">Work email</label>
+        <input id="contact-email" name="email" type="email" autocomplete="email" inputmode="email" required
+               class="input" placeholder="name@company.com" aria-describedby="contact-error">
+        <div id="contact-error" data-error class="hidden flex-wrap items-start gap-x-2 gap-y-1 text-sm font-medium text-destructive">
+          <i data-lucide="circle-alert" class="mt-0.5 h-4 w-4 shrink-0"></i><span data-msg class="min-w-0 flex-1"></span>
+          <button type="button" data-retry class="btn btn-link hidden min-h-6 font-semibold">Try again</button>
+        </div>
+        <label for="contact-msg" class="label block pt-3">What should we know? <span class="font-normal text-muted-foreground">(optional)</span></label>
+        <textarea id="contact-msg" name="message" rows="3" class="input h-auto py-3" placeholder="Team size, SSO provider, timeline…"></textarea>
+        <button type="submit" aria-disabled="false" class="btn btn-lg btn-primary mt-4 w-full aria-disabled:cursor-wait aria-disabled:hover:bg-foreground aria-disabled:hover:text-background">
+          <span data-idle class="inline-flex items-center gap-2">Send to sales <i data-lucide="send"></i></span>
+          <span data-busy class="hidden items-center gap-2"><i data-lucide="loader-circle" class="animate-spin"></i>Sending…</span>
+        </button>
+      </form>
+
+      <div id="contact-success" class="mt-6 hidden items-start gap-3 rounded-md border-2 border-success/60 p-4" tabindex="-1">
+        <i data-lucide="circle-check" class="mt-0.5 h-5 w-5 shrink-0 text-success"></i>
+        <div>
+          <p class="font-semibold">Message sent.</p>
+          <p class="mt-1 text-sm text-muted-foreground">Our team will reply to <b data-email class="text-foreground"></b> by email.</p>
+          <button type="button" data-close class="btn btn-md btn-ghost -ml-3 mt-3">Close</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Demo panel: shows every state of the signup form -->
+  <details id="demo" class="group fixed bottom-4 left-4 z-[65] max-w-[calc(100vw-2rem)] rounded-lg border border-foreground/20 bg-card/95 text-xs shadow-lg backdrop-blur">
+    <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-2.5 font-semibold uppercase tracking-[.16em] text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+      <i data-lucide="sliders-horizontal" class="h-4 w-4"></i>Demo · form states
+      <i data-lucide="chevron-up" class="h-4 w-4 transition-transform group-open:rotate-180"></i>
+    </summary>
+    <div class="flex flex-wrap gap-1 px-3 pb-3" role="group" aria-label="Show form state">
+      <button class="btn h-8 px-2.5 text-xs btn-ghost aria-pressed:bg-foreground aria-pressed:text-background" data-demo="idle" aria-pressed="true">Idle</button>
+      <button class="btn h-8 px-2.5 text-xs btn-ghost aria-pressed:bg-foreground aria-pressed:text-background" data-demo="error" aria-pressed="false">Error</button>
+      <button class="btn h-8 px-2.5 text-xs btn-ghost aria-pressed:bg-foreground aria-pressed:text-background" data-demo="loading" aria-pressed="false">Loading</button>
+      <button class="btn h-8 px-2.5 text-xs btn-ghost aria-pressed:bg-foreground aria-pressed:text-background" data-demo="offline" aria-pressed="false">Offline</button>
+      <button class="btn h-8 px-2.5 text-xs btn-ghost aria-pressed:bg-foreground aria-pressed:text-background" data-demo="success" aria-pressed="false">Success</button>
+    </div>
+    <div class="space-y-1 border-t border-foreground/15 px-3 py-2.5 normal-case tracking-normal">
+      <p class="font-semibold">Prototype: submissions are simulated, no email is sent.</p>
+      <p class="text-muted-foreground">Last tracked event: <code data-last-event class="font-mono text-foreground">none yet</code></p>
+    </div>
+  </details>
+
+  <script>
+    lucide.createIcons();
+
+    // ---- Mobile menu
+    const menuBtn = document.getElementById('menu-btn');
+    const menu = document.getElementById('menu');
+    const isMenuOpen = () => menuBtn.getAttribute('aria-expanded') === 'true';
+    function setMenu(open, { returnFocus = false } = {}) {
+      menuBtn.setAttribute('aria-expanded', String(open));
+      menuBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+      menu.classList.toggle('hidden', !open);
+      menu.classList.toggle('flex', open);
+      if (!open && returnFocus) menuBtn.focus();
+    }
+    menuBtn.addEventListener('click', () => setMenu(!isMenuOpen()));
+    menu.addEventListener('click', (e) => {
+      if (e.target.closest('a') && window.matchMedia('(max-width: 767px)').matches) setMenu(false);
+    });
+    // Escape closes the menu and puts focus back on the button that opened it
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isMenuOpen()) setMenu(false, { returnFocus: true });
+    });
+
+    // ---- Billing switch
+    const billing = document.getElementById('billing');
+    billing.addEventListener('click', () => {
+      const yearly = billing.getAttribute('aria-checked') !== 'true';
+      billing.setAttribute('aria-checked', String(yearly));
+      track('pricing_period_toggled', { period: yearly ? 'yearly' : 'monthly' });
+      document.querySelectorAll('[data-price]').forEach((el) => {
+        el.textContent = '$' + (yearly ? el.dataset.yearly : el.dataset.price);
+      });
+      document.querySelector('[data-billing-note]').textContent = yearly ? 'Billed $120 per user, once a year' : 'Billed monthly';
+    });
+
+    // ---- Async forms: hero trial, trial dialog, contact dialog, newsletter
+    const SPINNER_DELAY = 300;  // ms: fast replies never flash a spinner (Doherty threshold ~400 ms)
+    const SPINNER_MIN = 500;    // ms: once shown, the spinner stays long enough to be read
+    const TIMEOUT = 10000;      // ms: past 10 s the user gets control back with a retry
+    const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+    const announcer = document.getElementById('announcer');
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const MESSAGES = {
+      invalid: 'That email looks incomplete. Try something like name@company.com.',
+      offline: "Couldn't send — check your connection. Your email is still here.",
+      timeout: 'Nimbus is taking too long to respond. Your email is still here.',
+    };
+
+    // Simulated network call: swap for a real fetch() later.
+    function sendRequest() {
+      if (!navigator.onLine) return wait(400).then(() => { throw new Error('offline'); });
+      return wait(1200);
+    }
+    const withTimeout = (promise, ms) =>
+      Promise.race([promise, wait(ms).then(() => { throw new Error('timeout'); })]);
+
+    // One announcement per change. Clearing first lets an identical message be re-announced.
+    function announce(message) {
+      announcer.textContent = '';
+      if (message) setTimeout(() => { announcer.textContent = message; }, 50);
+    }
+
+    // Prototype telemetry: console + dataLayer, last event shown in the demo panel.
+    // Never put personal data (like the email) in event properties.
+    window.dataLayer = window.dataLayer || [];
+    function track(event, props = {}) {
+      const entry = { event, ...props, ts: Date.now() };
+      window.dataLayer.push(entry);
+      console.info('[track]', event, props);
+      const out = document.querySelector('[data-last-event]');
+      if (out) out.textContent = event + ' ' + JSON.stringify(props);
+    }
+
+    // The email typed once is reused to prefill the other forms.
+    let knownEmail = '';
+    let letterSubscribed = false;
+
+    function asyncForm(form, success, { name, empty, busyText, onSuccess }) {
+      const input = form.querySelector('input[type=email]');
+      const submit = form.querySelector('[type=submit]');
+      const errorBox = form.querySelector('[data-error]');
+      const retryBtn = errorBox.querySelector('[data-retry]');
+      let pending = false;
+
+      function showSpinner(on) {
+        submit.querySelector('[data-idle]').classList.toggle('hidden', on);
+        const busy = submit.querySelector('[data-busy]');
+        busy.classList.toggle('hidden', !on);
+        busy.classList.toggle('inline-flex', on);
+        if (on) announce(busyText);
+      }
+
+      // state: idle | error | loading | offline | success
+      function setState(state, { reason, spinner = true } = {}) {
+        const busy = state === 'loading';
+        const hasError = state === 'error' || state === 'offline';
+        form.dataset.state = state;
+
+        form.classList.toggle('hidden', state === 'success');
+        success.classList.toggle('hidden', state !== 'success');
+        success.classList.toggle('flex', state === 'success');
+
+        // aria-disabled (not disabled) keeps keyboard focus on the button while busy
+        submit.setAttribute('aria-disabled', String(busy));
+        submit.setAttribute('aria-busy', String(busy));
+        showSpinner(busy && spinner);
+
+        input.setAttribute('aria-invalid', String(state === 'error'));
+        errorBox.classList.toggle('hidden', !hasError);
+        errorBox.classList.toggle('flex', hasError);
+        retryBtn.classList.toggle('hidden', state !== 'offline');
+        if (hasError) {
+          const msg = reason === 'empty' ? empty : MESSAGES[reason] || MESSAGES.offline;
+          errorBox.querySelector('[data-msg]').textContent = msg;
+          announce(msg);
+        } else if (!busy) {
+          announce(''); // success is announced by moving focus to the confirmation
+        }
+        form.dispatchEvent(new CustomEvent('statechange', { detail: state }));
+      }
+
+      function complete(email) {
+        success.querySelectorAll('[data-email]').forEach((el) => { el.textContent = email; });
+        const upsell = success.querySelector('[data-upsell]');
+        if (upsell) upsell.classList.toggle('hidden', letterSubscribed);
+        setState('success');
+      }
+
+      async function send() {
+        if (pending) return;                    // aria-disabled doesn't block clicks by itself
+        const value = input.value.trim();
+        if (!value) { setState('error', { reason: 'empty' }); track('form_error_shown', { form: name, reason: 'empty' }); input.focus(); return; }
+        if (!input.checkValidity() || !EMAIL_RE.test(value)) { setState('error', { reason: 'invalid' }); track('form_error_shown', { form: name, reason: 'invalid' }); input.focus(); return; }
+
+        pending = true;
+        setState('loading', { spinner: false });
+        let shownAt = 0;
+        const spinnerTimer = setTimeout(() => { shownAt = performance.now(); showSpinner(true); }, SPINNER_DELAY);
+
+        let outcome = 'success';
+        try { await withTimeout(sendRequest(), TIMEOUT); }
+        catch (err) { outcome = err.message === 'timeout' ? 'timeout' : 'offline'; }
+
+        clearTimeout(spinnerTimer);
+        if (shownAt) await wait(Math.max(0, SPINNER_MIN - (performance.now() - shownAt)));
+        pending = false;
+
+        if (outcome === 'success') {
+          knownEmail = value;
+          if (onSuccess) onSuccess(value);
+          complete(value);
+          success.focus();
+        } else {
+          setState('offline', { reason: outcome }); // focus stays on the submit button
+          track('form_error_shown', { form: name, reason: outcome });
+        }
+      }
+
+      form.addEventListener('submit', (e) => { e.preventDefault(); send(); });
+      // Retry in one step; focus moves to submit first, because the retry link hides while loading.
+      retryBtn.addEventListener('click', () => { submit.focus(); send(); });
+      input.addEventListener('input', () => {
+        if (!errorBox.classList.contains('hidden')) setState('idle');
+      });
+
+      return {
+        form, input, success, setState, complete,
+        prefill() { if (!input.value && knownEmail) input.value = knownEmail; },
+        reset() { form.reset(); setState('idle'); },
+      };
+    }
+
+    // ---- Header "Start free" only once the hero form has scrolled out of view: never two at once
+    const headerCta = document.getElementById('header-cta');
+    new IntersectionObserver(([entry]) => {
+      const show = !entry.isIntersecting;
+      headerCta.classList.toggle('invisible', !show);  // visibility:hidden also removes it from tab order
+      headerCta.classList.toggle('opacity-0', !show);
+    }, { rootMargin: '-64px 0px 0px 0px' }).observe(document.getElementById('hero-form').parentElement);
+
+    // Where the trial dialog was opened from, for telemetry
+    let trialContext = { entry_point: 'header', plan: 'Team' };
+
+    const letter = asyncForm(document.getElementById('signup'), document.getElementById('signup-success'), {
+      name: 'newsletter', empty: 'Enter your work email to subscribe.', busyText: 'Subscribing…',
+      onSuccess: () => { letterSubscribed = true; track('newsletter_subscribed', { entry_point: 'section' }); },
+    });
+    const heroTrial = asyncForm(document.getElementById('hero-form'), document.getElementById('hero-success'), {
+      name: 'trial_hero', empty: 'Enter your work email to start your trial.', busyText: 'Starting your trial…',
+      onSuccess: () => track('trial_start_submitted', { entry_point: 'hero', plan: 'Team' }),
+    });
+    const dialogTrial = asyncForm(document.getElementById('trial-form'), document.getElementById('trial-success'), {
+      name: 'trial_dialog', empty: 'Enter your work email to start.', busyText: 'Starting…',
+      onSuccess: () => track('trial_start_submitted', { ...trialContext }),
+    });
+    const contact = asyncForm(document.getElementById('contact-form'), document.getElementById('contact-success'), {
+      name: 'contact_sales', empty: 'Enter your work email so we can reply.', busyText: 'Sending…',
+      onSuccess: () => track('contact_sales_submitted', {}),
+    });
+
+    letter.success.querySelector('[data-reset]').addEventListener('click', () => {
+      letterSubscribed = false; letter.reset(); letter.input.focus();
+    });
+
+    // ---- One-click newsletter after a trial signup: the email is already known
+    document.querySelectorAll('[data-subscribe-letter]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        if (btn.getAttribute('aria-disabled') === 'true') return;
+        letterSubscribed = true;
+        letter.input.value = knownEmail;
+        letter.complete(knownEmail);
+        document.querySelectorAll('[data-subscribe-letter]').forEach((b) => {
+          b.setAttribute('aria-disabled', 'true');
+          b.innerHTML = '<i data-lucide="check"></i>Added';
+        });
+        lucide.createIcons();
+        announce("Added. You're on the Nimbus Letter list.");
+        track('newsletter_subscribed', { entry_point: 'upsell', consent_text: 'v1' });
+      })
+    );
+
+    // ---- Newsletter link: scroll AND put focus in the field, saving a click
+    document.querySelectorAll('[data-focus-letter]').forEach((a) =>
+      a.addEventListener('click', (e) => {
+        e.preventDefault();
+        setMenu(false);
+        const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        document.getElementById('letter').scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+        const target = letter.form.classList.contains('hidden') ? letter.success : letter.input;
+        letter.prefill();
+        target.focus({ preventScroll: true });
+        history.replaceState(null, '', '#letter');
+      })
+    );
+
+    // ---- Dialogs: trial (plan preselected by the button) and contact sales
+    const PLANS = {
+      Team: { eyebrow: 'Team plan · 14-day trial', title: 'Start your free trial', cta: 'Start free trial' },
+      Starter: { eyebrow: 'Starter plan · free forever', title: 'Create your free account', cta: 'Create free account' },
+    };
+    const trialDialog = document.getElementById('trial-dialog');
+    const contactDialog = document.getElementById('contact-dialog');
+    let opener = null;
+
+    function openDialog(dialog, ctrl, trigger) {
+      opener = trigger;
+      if (ctrl.form.dataset.state === 'success') ctrl.reset();
+      ctrl.prefill();
+      dialog.showModal();                       // native: focus trap, Escape, inert page
+      // Desktop: straight into the field (no extra click). Mobile: no auto-focus,
+      // so the keyboard doesn't pop up and cover the dialog before the user reads it.
+      if (window.matchMedia('(min-width: 768px)').matches) ctrl.input.focus();
+    }
+
+    document.querySelectorAll('[data-open-trial]').forEach((btn) =>
+      btn.addEventListener('click', () => {
+        const name = btn.dataset.openTrial;
+        const plan = PLANS[name];
+        trialDialog.querySelector('[data-plan-eyebrow]').textContent = plan.eyebrow;
+        trialDialog.querySelector('[data-plan-title]').textContent = plan.title;
+        trialDialog.querySelector('[data-plan-cta]').textContent = plan.cta;
+        trialDialog.querySelector('[data-plan-name]').textContent = name;
+        trialContext = { entry_point: btn.closest('header') ? 'header' : 'pricing', plan: name };
+        setMenu(false);
+        openDialog(trialDialog, dialogTrial, btn);
+      })
+    );
+    document.querySelectorAll('[data-open-contact]').forEach((btn) =>
+      btn.addEventListener('click', () => openDialog(contactDialog, contact, btn))
+    );
+
+    // Cleanup runs synchronously here rather than on the 'close' event, which isn't
+    // guaranteed to fire promptly (e.g. in background tabs).
+    function closeDialog(dialog, ctrl, method = 'close', { restoreFocus = true } = {}) {
+      if (!dialog.open) return;
+      if (ctrl.form.dataset.state !== 'success') track('dialog_dismissed', { dialog: dialog.id.replace('-dialog', ''), method });
+      dialog.close();
+      // Never lose what was typed: only clear errors, keep the value
+      if (ctrl.form.dataset.state === 'error' || ctrl.form.dataset.state === 'offline') ctrl.setState('idle');
+      // After the browser's own focus restore, so focus always lands on the button that opened it
+      if (opener && restoreFocus) { const back = opener; back.focus(); setTimeout(() => back.focus(), 0); }
+    }
+
+    [[trialDialog, dialogTrial], [contactDialog, contact]].forEach(([dialog, ctrl]) => {
+      dialog.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', () => closeDialog(dialog, ctrl, 'close')));
+      dialog.addEventListener('click', (e) => { if (e.target === dialog) closeDialog(dialog, ctrl, 'backdrop'); });
+      dialog.addEventListener('cancel', (e) => { e.preventDefault(); closeDialog(dialog, ctrl, 'escape'); });
+    });
+
+    // "Compare plans" inside the trial dialog: close it and land on pricing, focus on its heading
+    trialDialog.querySelector('[data-to-pricing]').addEventListener('click', (e) => {
+      e.preventDefault();
+      closeDialog(trialDialog, dialogTrial, 'compare_plans', { restoreFocus: false });
+      const heading = document.getElementById('pricing-title');
+      heading.setAttribute('tabindex', '-1');
+      document.getElementById('pricing').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      heading.focus({ preventScroll: true });
+    });
+
+    // ---- Demo panel drives the newsletter form
+    letter.form.addEventListener('statechange', (e) =>
+      document.querySelectorAll('[data-demo]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.demo === e.detail)))
+    );
+    document.querySelectorAll('[data-demo]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const s = b.dataset.demo;
+        if (s === 'error') letter.input.value = 'alex@';
+        if ((s === 'offline' || s === 'success') && !EMAIL_RE.test(letter.input.value)) letter.input.value = 'alex@nimbus.dev';
+        if (s === 'success') letter.complete(letter.input.value);
+        else letter.setState(s, { reason: s === 'error' ? 'invalid' : s === 'offline' ? 'offline' : undefined });
+        document.getElementById('letter').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      })
+    );
+  </script>
+</body>
+</html>

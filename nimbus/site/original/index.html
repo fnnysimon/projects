@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nimbus</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/components.css">
+</head>
+<body>
+
+  <header class="site-header">
+    <div class="container">
+      <a href="/" class="logo">nimbus.</a>
+      <nav class="nav">
+        <a href="#" class="active">Product</a>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="styleguide.html">Styleguide</a>
+        <button class="icon-btn">🔍</button>
+        <button class="icon-btn">☰</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hero">
+    <span class="hero-badge">NEW · v4 is here</span>
+    <h1>Your team's workspace, in the cloud</h1>
+    <p>Nimbus brings docs, tasks and chat together so your team can stop switching tabs and start shipping.</p>
+    <div class="actions">
+      <button class="cta">Get started</button>
+      <button class="btn--secondary">Learn more</button>
+      <a href="#" class="link-btn" style="align-self:center; margin-left:6px">click here for demo</a>
+    </div>
+  </div>
+
+  <section id="features">
+    <div class="container">
+      <h4 class="section-title">Features</h4>
+      <p class="section-sub">Everything you need. Nothing you don't.</p>
+
+      <div class="features">
+        <div class="card">
+          <span class="feature-icon">📝</span>
+          <h3>Docs</h3>
+          <p>Write together in real time with comments, mentions and version history.</p>
+          <span class="badge">Popular</span>
+        </div>
+        <div class="feature-card">
+          <span class="feature-icon">✅</span>
+          <h3 style="font-size:20px; color:#4f47e6">Tasks</h3>
+          <p>Boards, lists and timelines. Assign, prioritise and track every deliverable.</p>
+          <span class="tag">Beta</span>
+        </div>
+        <div class="tile">
+          <span class="feature-icon">💬</span>
+          <h3>Chat <span class="label-new">NEW</span></h3>
+          <p>Threads tied to your docs and tasks, so context never gets lost.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="pricing" style="background:#fcfcff; padding: 60px 0 80px;">
+    <div class="container-narrow">
+      <h2 class="section-title">Simple, transparent pricing</h2>
+      <p class="section-sub" style="margin-bottom:56px">No hidden fees. Cancel anytime*</p>
+
+      <div class="pricing">
+        <div class="plan">
+          <h3>Starter</h3>
+          <div class="price">$0<small>/mo</small></div>
+          <ul><li>3 projects</li><li>1 GB storage</li><li>Community support</li></ul>
+          <button class="btn btn-primary">Choose</button>
+        </div>
+        <div class="plan featured">
+          <h3>Team</h3>
+          <div class="price">$12<small>/user/mo</small></div>
+          <ul style="text-align:left"><li>Unlimited projects</li><li>100 GB storage</li><li>Priority support</li></ul>
+          <button class="button">Start free trial</button>
+        </div>
+        <div class="plan">
+          <h3>Enterprise</h3>
+          <div class="price" style="font-size:34px; font-family:inherit">Custom</div>
+          <ul><li>SSO &amp; audit logs</li><li>Unlimited storage</li><li>Dedicated manager</li></ul>
+          <button class="btn--secondary">Contact sales</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="signup">
+    <div class="container">
+      <h2>Stay in the loop</h2>
+      <div class="alert alert-success">Success! You're subscribed.</div>
+      <div class="alert alert-warning">Warning: our newsletter may contain jokes.</div>
+      <div class="alert alert-error">Error 422: Unprocessable Entity</div>
+
+      <form class="form-row" onsubmit="return false">
+        <input class="input" type="text" placeholder="Name">
+        <input class="input is-error" type="email" placeholder="Email" value="alex@">
+        <button class="btn btn-primary" style="padding:11px 22px; border-radius:5px">Submit</button>
+      </form>
+      <div class="field-error">Invalid input.</div>
+
+      <img src="img/newsletter.png" width="1" height="1">
+    </div>
+  </section>
+
+  <footer>
+    <div class="container">
+      <p>© 2026 Nimbus Inc. All rights reserved.</p>
+      <a href="#">Privacy</a><a href="#">Terms</a><a href="#">Cookies</a>
+    </div>
+  </footer>
+
+  <div class="toast">✓ Changes saved</div>
+</body>
+</html>

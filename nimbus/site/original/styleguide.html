@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Nimbus — Styleguide</title>
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/components.css">
+  <style>
+    .sg { padding: 40px 0 80px; }
+    .sg h2 { margin-top: 48px; border-bottom: 1px solid var(--line); padding-bottom: 6px; }
+    .swatches { display: flex; flex-wrap: wrap; gap: 12px; }
+    .swatch { width: 120px; font-size: 11px; color: #888; }
+    .swatch div { height: 56px; border-radius: 6px; border: 1px solid #eee; margin-bottom: 4px; }
+    .row { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin: 12px 0; }
+    .scale div { background: #c7d2fe; height: 14px; margin: 4px 0; }
+    .scale span { font-size: 11px; color: #999; font-family: var(--font-mono); }
+    .doc-note { font-size: 13px; color: #b0b0b0; font-style: italic; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="container">
+      <a href="index.html" class="logo">nimbus.</a>
+      <nav class="nav">
+        <a href="index.html">Product</a>
+        <a href="styleguide.html" class="active">Styleguide</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container sg">
+    <h1>Nimbus Design System</h1>
+    <p class="doc-note">Last updated: March 2023. Source of truth — please always follow this page.</p>
+
+    <h2>Colors</h2>
+    <p class="doc-note">Our primary color is <b>#6C63FF</b>. Never use any other blue.</p>
+    <div class="swatches">
+      <div class="swatch"><div style="background:#6C63FF"></div>Primary #6C63FF</div>
+      <div class="swatch"><div style="background:var(--color-primary)"></div>--color-primary</div>
+      <div class="swatch"><div style="background:var(--primary-color)"></div>--primary-color</div>
+      <div class="swatch"><div style="background:var(--brand-blue)"></div>--brand-blue</div>
+      <div class="swatch"><div style="background:var(--blue)"></div>--blue</div>
+      <div class="swatch"><div style="background:var(--color-secondary)"></div>--color-secondary</div>
+      <div class="swatch"><div style="background:var(--pink)"></div>--pink</div>
+      <div class="swatch"><div style="background:var(--color-accent)"></div>--color-accent</div>
+      <div class="swatch"><div style="background:var(--color-success)"></div>--color-success</div>
+      <div class="swatch"><div style="background:var(--color-error)"></div>--color-error</div>
+      <div class="swatch"><div style="background:var(--red)"></div>--red</div>
+      <div class="swatch"><div style="background:var(--danger)"></div>--danger</div>
+    </div>
+
+    <h2>Typography</h2>
+    <p class="doc-note">We use one typeface: Inter.</p>
+    <h1 style="margin:8px 0">Heading 1 — Georgia</h1>
+    <h2 style="border:0; margin:8px 0">Heading 2 — Georgia, 24px</h2>
+    <h3 style="margin:8px 0">Heading 3 — Trebuchet, 26px</h3>
+    <h4 style="margin:8px 0">Heading 4 — Segoe, uppercase</h4>
+    <p>Body text — 15px / 1.45. <span style="color:var(--txt-grey)">Muted text — --txt-grey.</span></p>
+
+    <h2>Spacing scale</h2>
+    <p class="doc-note">Strict 8px grid.</p>
+    <div class="scale">
+      <span>--space-1 (4px)</span><div style="width:var(--space-1)"></div>
+      <span>--space-2 (8px)</span><div style="width:var(--space-2)"></div>
+      <span>--space-3 (13px)</span><div style="width:var(--space-3)"></div>
+      <span>--space-4 (16px)</span><div style="width:var(--space-4)"></div>
+      <span>--space-5 (22px)</span><div style="width:var(--space-5)"></div>
+      <span>--spacing-lg (30px)</span><div style="width:var(--spacing-lg)"></div>
+      <span>--space-6 (2rem)</span><div style="width:var(--space-6)"></div>
+      <span>--space-xl (47px)</span><div style="width:var(--space-xl)"></div>
+    </div>
+
+    <h2>Buttons</h2>
+    <p class="doc-note">Use only the primary and secondary buttons below.</p>
+    <div class="row">
+      <button class="btn btn-primary">.btn-primary</button>
+      <button class="button">.button</button>
+      <button class="btn--secondary">.btn--secondary</button>
+      <button class="cta">.cta</button>
+      <button class="link-btn">.link-btn</button>
+    </div>
+
+    <h2>Badges</h2>
+    <div class="row">
+      <span class="badge">.badge</span>
+      <span class="tag">.tag</span>
+      <span class="label-new">.label-new</span>
+      <span class="hero-badge" style="margin:0">.hero-badge</span>
+    </div>
+
+    <h2>Alerts</h2>
+    <div class="alert alert-success">.alert-success</div>
+    <div class="alert alert-warning">.alert-warning</div>
+    <div class="alert alert-error">.alert-error</div>
+
+    <h2>Cards</h2>
+    <div class="features">
+      <div class="card"><h3>.card</h3><p>Radius 8px, padding 24px.</p></div>
+      <div class="feature-card"><h3>.feature-card</h3><p>Radius 16px, padding 32/20/18.</p></div>
+      <div class="tile"><h3>.tile</h3><p>Radius 2px, padding 1.1em.</p></div>
+    </div>
+  </main>
+</body>
+</html>
