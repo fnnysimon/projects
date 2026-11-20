@@ -4,7 +4,7 @@ A practice project for Claude skills, based on a real problem: the website of **
 
 🌐 **Original site:** https://gooseworks.ai/
 
-📄 **Full report:** [report/gooseworks-report.pdf](report/gooseworks-report.pdf) (33 pages, or the self-contained [HTML](report/gooseworks-report.html)), generated with the [`/doc` skill](https://github.com/fnnysimon/claude-skills/tree/main/develop/Gestion-de-projet/doc)
+📄 **Full report:** [report/gooseworks-report.pdf](report/gooseworks-report.pdf) (43 pages, steps 0 to 7, or the self-contained [HTML](report/gooseworks-report.html)), generated with the [`/doc` skill](https://github.com/fnnysimon/claude-skills/tree/main/develop/Gestion-de-projet/doc)
 
 ## Before vs After
 
@@ -152,7 +152,14 @@ The page went from **12.9 to 8.6 screens** on a phone (10,437 → 7,023 px at 37
 - **Duplicates hidden on phones:** the "Connected" panel (it repeated "Works with"), 2 of the 3 customer examples (they're in the case study).
 - **Value strip side by side**, "Works with" on one line, and less padding everywhere.
 
-Not in the /doc report yet: it covers steps 0 to 6.
+| Before (390 px) | After (390 px) |
+|---|---|
+| <img src="screenshots/mb-price-b.png" width="300" alt=""> | <img src="screenshots/mb-price-a.png" width="300" alt=""> |
+| <img src="screenshots/mb-sig-b.png" width="300" alt=""> | <img src="screenshots/mb-sig-a.png" width="300" alt=""> |
+| <img src="screenshots/mb-dup-b.png" width="300" alt=""> | <img src="screenshots/mb-dup-a.png" width="300" alt=""> |
+| <img src="screenshots/mb-story-b.png" width="300" alt=""> | <img src="screenshots/mb-story-a.png" width="300" alt=""> |
+| <img src="screenshots/mb-value-b.png" width="300" alt=""> | <img src="screenshots/mb-value-a.png" width="300" alt=""> |
+| <img src="screenshots/mb-hero-b.png" width="300" alt=""> | <img src="screenshots/mb-hero-a.png" width="300" alt=""> |
 
 ---
 
@@ -247,7 +254,7 @@ To add a page: copy a file in `pages/`, set `data-page="yourId"` on its `<body>`
 
 | Path | What it is |
 |---|---|
-| [index.html](index.html), [pages/](pages/) | The current site (v5): landing, booking, case study, creative agent, about, skills, legal placeholders |
+| [index.html](index.html), [pages/](pages/) | The current site (v7): landing, booking, case study, creative agent, about, skills, legal placeholders |
 | [site.config.js](site.config.js) | Routes, nav, footer, banner, CTAs, landing section order |
 | [report/gooseworks-report.pdf](report/gooseworks-report.pdf) | The full before/after report (also as [HTML](report/gooseworks-report.html)) |
 | [report/shots.js](report/shots.js) | The `/doc` shot list that produced the screenshots |

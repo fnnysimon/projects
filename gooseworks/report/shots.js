@@ -56,6 +56,22 @@ window.SHOTS = {
   'fd-hero-b':   { src: 'v5/index.html' },
   'fd-hero-a':   { src: 'v6/index.html', boxes: [{ sel: '.ledger', n: 1, pad: 10 }, { sel: '.hero h1 em', n: 2, text: true, pad: 4 }] },
 
+  // ---- 7. shorter mobile page (v5b -> v7), all at 390 px
+  'mb-full-b':   { mobile: true, full: true, src: 'v5b/index.html' },
+  'mb-full-a':   { mobile: true, full: true, src: 'v7/index.html' },
+  'mb-price-b':  { mobile: true, src: 'v5b/index.html', scroll: '#pricing .price-grid', offset: 70, boxes: [{ sel: '#pricing .price-grid', n: 1, pad: 4 }] },
+  'mb-price-a':  { mobile: true, src: 'v7/index.html', scroll: '#pricing .swipe-hint', offset: 70, boxes: [{ sel: '#pricing .swipe-hint', n: 1, text: true, pad: 4 }, { sel: '#pricing .price-grid', n: 1, pad: 0 }] },
+  'mb-sig-b':    { mobile: true, src: 'v5b/index.html', scroll: '#signals .levers', offset: 70, boxes: [{ sel: '#signals .lever-list', n: 2, pad: 4 }] },
+  'mb-sig-a':    { mobile: true, src: 'v7/index.html', scroll: '#signals .levers', offset: 70, boxes: [{ sel: '#signals .lever-list', n: 2, pad: 4 }] },
+  'mb-dup-b':    { mobile: true, src: 'v5b/index.html', scroll: '#reads .feature', offset: 70, boxes: [{ sel: '#reads .feature .panel-warm', n: 3, pad: 4 }] },
+  'mb-dup-a':    { mobile: true, src: 'v7/index.html', scroll: '#reads .feature', offset: 70, boxes: [{ sel: '#reads .feature', n: 3, pad: 4 }] },
+  'mb-story-b':  { mobile: true, src: 'v5b/index.html', scroll: '#customer .story-side', offset: 70, boxes: [{ sel: '#customer .story-side', n: 3, pad: 4 }] },
+  'mb-story-a':  { mobile: true, src: 'v7/index.html', scroll: '#customer .story-side', offset: 70, boxes: [{ sel: '#customer .story-side', n: 3, pad: 4 }] },
+  'mb-value-b':  { mobile: true, src: 'v5b/index.html', scroll: '#value', offset: 70, boxes: [{ sel: '#value .value-strip', n: 4, pad: 4 }] },
+  'mb-value-a':  { mobile: true, src: 'v7/index.html', scroll: '#value', offset: 70, boxes: [{ sel: '#value .value-strip', n: 4, pad: 4 }] },
+  'mb-hero-b':   { mobile: true, src: 'v5b/index.html', boxes: [{ sel: '.stack-row', n: 4, pad: 4 }] },
+  'mb-hero-a':   { mobile: true, src: 'v7/index.html', boxes: [{ sel: '.stack-row', n: 4, pad: 4 }] },
+
   // ---- Final
   'v5-full':     { src: 'v5/index.html', full: true },
 };
