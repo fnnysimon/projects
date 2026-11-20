@@ -1,6 +1,6 @@
 // /doc shot list for the GooseWorks recreation.
 // Versions: v0 (baseline) … v5 (current), v6 = the reverted "ledger" art direction.
-window.GLOBAL_CSS = '.reveal{opacity:1!important;transform:none!important;transition:none!important}*{transition:none!important}.step-panel{animation:none!important}';
+window.GLOBAL_CSS = '.reveal{opacity:1!important;transform:none!important;transition:none!important}*{transition:none!important}.step-panel,.book-confirm{animation:none!important}';
 window.SETTLE_MS = 2500;
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -71,6 +71,17 @@ window.SHOTS = {
   'mb-value-a':  { mobile: true, src: 'v7/index.html', scroll: '#value', offset: 70, boxes: [{ sel: '#value .value-strip', n: 4, pad: 4 }] },
   'mb-hero-b':   { mobile: true, src: 'v5b/index.html', boxes: [{ sel: '.stack-row', n: 4, pad: 4 }] },
   'mb-hero-a':   { mobile: true, src: 'v7/index.html', boxes: [{ sel: '.stack-row', n: 4, pad: 4 }] },
+
+  // ---- 8. the essentials at a glance (v7 -> v8)
+  'gl-hero-b':   { src: 'v7/index.html', boxes: [{ sel: '.hero h1', n: 1, text: true }, { sel: '.hero .cta-row', n: 3, kids: true }] },
+  'gl-hero-a':   { src: 'v8/index.html', boxes: [{ sel: '.hero-intro h1', n: 1, text: true, pad: 4 }, { sel: '.how-steps', n: 1, kids: true, pad: 6 }, { sel: '.key-facts', n: 2, pad: 6 }, { sel: '.hero-book', n: 3, pad: 6 }, { sel: '.nav a:last-child', n: 4, pad: 2 }] },
+  'gl-book-a':   { src: 'v8/index.html', run: async (d) => { d.querySelectorAll('.hero-book .slot')[1].click(); const e = d.querySelector('#f-email'); e.value = 'alex@example.com'; e.dispatchEvent(new Event('input', { bubbles: true })); e.blur(); await sleep(300); }, boxes: [{ sel: '.hero-book .slot[aria-pressed="true"]', n: 3, pad: 4 }, { sel: '.hero-book .book-confirm', n: 3, pad: 6 }] },
+  'gl-mob-b':    { mobile: true, src: 'v7/index.html', boxes: [{ sel: '.hero h1', n: 1, text: true }, { sel: '.hero .cta-row', n: 3, pad: 6 }] },
+  'gl-mob-a':    { mobile: true, src: 'v8/index.html', boxes: [{ sel: '.hero-intro h1', n: 1, text: true, pad: 4 }, { sel: '.key-facts', n: 2, pad: 4 }, { sel: '.hero-book', n: 3, pad: 4 }] },
+  'gl-page-b':   { src: 'v7/pages/book.html', scroll: '#book-form', offset: 100, boxes: [{ sel: '#book-form .fields', n: 3, pad: 6 }] },
+  'gl-page-a':   { src: 'v8/pages/book.html', scroll: '#book-form', offset: 100, boxes: [{ sel: '#book-form .slots', n: 3, pad: 6 }] },
+  'gl-ok-a':     { src: 'v8/pages/book.html?plan=growth', scroll: '#book-form', offset: 100, run: async (d) => { d.querySelectorAll('#book-form .slot')[1].click(); const e = d.querySelector('#f-email'); e.value = 'alex@brand.co'; d.querySelector('.confirm-btn').click(); await sleep(1800); d.activeElement.blur(); }, after: 600, boxes: [{ sel: '#book-form .details', n: 3, pad: 6 }] },
+  'v8-full':     { src: 'v8/index.html', full: true },
 
   // ---- Final
   'v5-full':     { src: 'v5/index.html', full: true },

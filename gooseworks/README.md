@@ -4,13 +4,13 @@ A practice project for Claude skills, based on a real problem: the website of **
 
 🌐 **Original site:** https://gooseworks.ai/
 
-📄 **Full report:** [report/gooseworks-report.pdf](report/gooseworks-report.pdf) (43 pages, steps 0 to 7, or the self-contained [HTML](report/gooseworks-report.html)), generated with the [`/doc` skill](https://github.com/fnnysimon/claude-skills/tree/main/develop/Gestion-de-projet/doc)
+📄 **Full report:** [report/gooseworks-report.pdf](report/gooseworks-report.pdf) (49 pages, steps 0 to 8, or the self-contained [HTML](report/gooseworks-report.html)), generated with the [`/doc` skill](https://github.com/fnnysimon/claude-skills/tree/main/develop/Gestion-de-projet/doc)
 
 ## Before vs After
 
-| Before: the first recreation (v0) | After: the current site (v5) |
+| Before: the first recreation (v0) | After: the current site (v8) |
 |---|---|
-| ![First recreation of the landing page](screenshots/v0-full.png) | ![Current landing page](screenshots/v5-full.png) |
+| ![First recreation of the landing page](screenshots/v0-full.png) | ![Current landing page](screenshots/v8-full.png) |
 
 ## Key numbers
 
@@ -173,7 +173,13 @@ The request: the visitor should see, at a glance, what the startup does, the key
 - **Direct contact:** "Contact" in the header, "Email the founders" in the booking card and the footer (one address in `site.config.js`).
 - Trade-off: the phone page is half a screen longer (8.6 → 9.1). Still placeholders: the price and the contact address.
 
-Not in the /doc report yet: it covers steps 0 to 7.
+| Before | After |
+|---|---|
+| ![](screenshots/gl-hero-b.png) | ![](screenshots/gl-hero-a.png) |
+| <img src="screenshots/gl-mob-b.png" width="300" alt=""> | <img src="screenshots/gl-mob-a.png" width="300" alt=""> |
+| ![](screenshots/gl-page-b.png) | ![](screenshots/gl-page-a.png) |
+
+![Click 1 picks a time, then the email field and Confirm appear](screenshots/gl-book-a.png)
 
 ---
 
@@ -197,7 +203,7 @@ flowchart LR
     R --> E[HTML + PDF]
 ```
 
-1. **Timeline:** every skill or request in order, with the user's own words and the changes made (7 steps here, including one plain request and one reverted pass).
+1. **Timeline:** every skill or request in order, with the user's own words and the changes made (8 steps here, including three plain requests and one reverted pass).
 2. **Versions:** this project already saved a copy of the site after every step in [`_versions/`](_versions/), so each one was copied into a scratch folder (`v0` … `v5`, plus `v6` for the reverted pass). The project itself was never modified to take the screenshots.
 3. **Shot plan:** [`report/shots.js`](report/shots.js) defines 27 shots: 1 to 3 before/after views per step with the same scroll position, plus a full page of v0 and v5. Setup code reaches states that only exist after an action: a focused button, an empty form submitted, a slot picked, a booking confirmed, an email typed into the form.
 4. **Capture:** a small harness (`annot.html`) loads each version in a fixed-size iframe, runs the setup, freezes timers, and draws numbered red boxes around CSS selectors. Headless Chrome takes the screenshot at 1280 px (900 px for step 2, 390 px for mobile).
