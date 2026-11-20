@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Book a call · GooseWorks</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Doto:wght@700;800;900&family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/styles.css">
+</head>
+<body data-root="../" data-page="book">
+<div id="site-header"></div>
+
+<main>
+  <section class="page-hero">
+    <!-- book-grid: desktop = intro + proof on the left, form on the right.
+         mobile = intro, then the form, then the proof. -->
+    <div class="container book-grid">
+      <div class="book-intro">
+        <span class="eyebrow">For ecommerce brands</span>
+        <h1>Find the revenue your funnel is leaking.</h1>
+        <p class="lead">Goose reads your ads, store and email every day and shows you where sales slip away.</p>
+      </div>
+      <div class="book-proof">
+        <div class="stat-row"><div class="stat"><b>15%</b><span>more revenue found in the first 2 weeks</span></div></div>
+        <ul class="checks">
+          <li>Every leak priced in dollars a month</li>
+          <li>Your ads, store, checkout and email read together</li>
+          <li>One clear fix for each, ready for your yes</li>
+        </ul>
+      </div>
+
+      <!-- Booking flow — behaviour spec: docs/06-interaction-spec-booking.md, logic: assets/booking.js.
+           Demo only: nothing is sent. Add ?demo=slow | error | taken | empty | offline to the URL to see each state. -->
+      <form class="form booking" id="book-form" novalidate>
+        <p class="step-indicator" id="step-indicator">Step 1 of 2 · Your brand</p>
+        <div class="sr-only" aria-live="polite" id="book-live"></div>
+
+        <!-- STEP 1 · Your brand -->
+        <div class="step-panel" data-step="1">
+          <h2 class="step-title" tabindex="-1">Book a 15-minute call</h2>
+          <p class="muted step-sub">Talk to our team about your funnel. No commitment needed.</p>
+          <div class="fields">
+            <div class="field">
+              <label for="f-email">Work email</label>
+              <input id="f-email" type="email" name="email" placeholder="you@brand.com" autocomplete="email" inputmode="email" aria-describedby="f-email-err">
+              <p class="field-error" id="f-email-err" hidden></p>
+            </div>
+            <div class="field">
+              <label for="f-site">Store website</label>
+              <input id="f-site" type="text" name="site" placeholder="yourbrand.com" autocomplete="url" inputmode="url" autocapitalize="off" spellcheck="false" aria-describedby="f-site-hint f-site-err">
+              <p class="hint" id="f-site-hint">We look at it before the call.</p>
+              <p class="field-error" id="f-site-err" hidden></p>
+            </div>
+            <!-- Revenue as 3 one-tap chips instead of a dropdown (1 tap instead of 2).
+                 Preselected when the visitor comes from a pricing card (?plan=starter|growth|business). -->
+            <fieldset class="field chips-field" id="f-revenue" aria-describedby="f-revenue-hint f-revenue-err">
+              <legend>Yearly revenue</legend>
+              <div class="chips-row">
+                <label class="chip"><input type="radio" name="revenue" value="Under $1M"><span>Under $1M</span></label>
+                <label class="chip"><input type="radio" name="revenue" value="$1–10M"><span>$1–10M</span></label>
+                <label class="chip"><input type="radio" name="revenue" value="$10M+"><span>$10M+</span></label>
+              </div>
+              <p class="hint" id="f-revenue-hint">So we come prepared with your numbers.</p>
+              <p class="field-error" id="f-revenue-err" hidden></p>
+            </fieldset>
+            <div class="field">
+              <label for="f-spend">Monthly ad spend <span class="optional">(optional)</span></label>
+              <select id="f-spend" name="spend">
+                <option value="">Prefer not to say</option><option>Under $10k</option><option>$10–50k</option><option>$50k+</option>
+              </select>
+            </div>
+            <button class="btn btn-dark btn-block" type="submit" data-action="continue">Continue <span class="arrow" aria-hidden="true"></span></button>
+            <small class="muted center">Takes a minute. Then you pick a time.</small>
+          </div>
+        </div>
+
+        <!-- STEP 2 · Pick a time -->
+        <div class="step-panel" data-step="2" hidden>
+          <h2 class="step-title" tabindex="-1" id="slots-title">Pick a time</h2>
+          <p class="muted step-sub" id="tz-line">15 minutes, on video.</p>
+          <div class="slot-status" id="slot-status" hidden></div>
+          <p class="field-error" id="slot-err" hidden></p>
+          <div class="slots" id="slots" role="group" aria-labelledby="slots-title"></div>
+          <p class="form-error" id="submit-err" hidden></p>
+          <div class="form-actions">
+            <button class="btn-back" type="button" data-action="back"><span aria-hidden="true">←</span> Back</button>
+            <button class="btn btn-dark confirm-btn" type="submit" data-action="confirm">
+              <span class="spinner" aria-hidden="true"></span><span class="confirm-label">Confirm</span>
+            </button>
+          </div>
+          <p class="slow-note" id="slow-note" hidden>Still working, this can take a few seconds…</p>
+        </div>
+
+        <!-- STEP 3 · Confirmed -->
+        <div class="step-panel success" data-step="3" hidden>
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <h2 class="step-title" tabindex="-1">You're booked</h2>
+          <p class="success-when" id="success-when"></p>
+          <p class="muted" id="success-mail"></p>
+          <a class="btn btn-dark btn-block" id="add-cal" download="gooseworks-call.ics">Add to calendar</a>
+          <div class="prep">
+            <h3>What to have ready</h3>
+            <p>Access to your Shopify and ad accounts, in case we look at them together.</p>
+          </div>
+          <a class="text-link" data-route="cta2" data-cta-label="2"><span class="label">See a real report</span></a>
+          <small class="muted">Demo: nothing was sent.</small>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <section style="background:var(--bg-2)">
+    <div class="container">
+      <h2 style="margin-bottom:32px">What happens next.</h2>
+      <div class="grid-3">
+        <div class="card"><span class="num">01</span><h3>Tell us about your brand</h3><p>Your site, revenue and ad spend. It takes a minute.</p></div>
+        <div class="card"><span class="num">02</span><h3>Pick a time</h3><p>Choose a slot on our calendar that suits you.</p></div>
+        <div class="card"><span class="num">03</span><h3>See your leaks</h3><p>On the call we show where your funnel loses money and what to fix first.</p></div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div id="site-footer"></div>
+<script src="../site.config.js"></script>
+<script src="../assets/site.js"></script>
+<script src="../assets/booking.js"></script>
+</body>
+</html>

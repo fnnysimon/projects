@@ -248,7 +248,9 @@
         <h2 class="section-title">Simple plans.<br>No cut of your sales.</h2>
         <p class="muted-lg">Pick by revenue. Every plan starts with a call where we show you your own leaks.</p>
       </div>
-      <div class="price-grid">
+      <!-- Mobile: the plans become a swipeable row (one card tall instead of three). Hint shown on phones only. -->
+      <p class="swipe-hint" id="plans-hint">Swipe to compare the 3 plans <span aria-hidden="true">→</span></p>
+      <div class="price-grid" role="region" aria-label="Plans" aria-describedby="plans-hint">
         <div class="price">
           <div class="price-head"><small>Starter</small><div class="amount">$499<span>/mo</span></div></div>
           <div class="price-body">

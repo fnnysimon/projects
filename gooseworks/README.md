@@ -21,7 +21,7 @@ A practice project for Claude skills, based on a real problem: the website of **
 | Contrast of the light grey text | 3.2:1 | 5.1:1 |
 | Font sizes in the CSS | 18 | 7 tokens |
 | Spacing values off the 4px grid | 99 | 0 |
-| Mobile landing length, in screens | 14.5 | 12.8 (11.5 after step 1, then the "Your data" block was added) |
+| Mobile landing length, in screens (375 × 812) | 14.5 | 8.6 |
 
 ## Timeline
 
@@ -34,6 +34,7 @@ A practice project for Claude skills, based on a real problem: the website of **
 | 4 | `/interaction-design` | `pages/book.html` | Booking flow rebuilt from a spec: errors, steps, time zone, Back, calendar file |
 | 5 | Request, no skill | Booking, pricing | Fewer clicks: website from the email, revenue in one tap, plan passed from pricing |
 | 6 | `/frontend-design` | Landing | "Revenue ledger" art direction, tried then **reverted** |
+| 7 | Request, no skill | Landing (phones only) | Shorter mobile page: 12.9 → 8.6 screens, desktop unchanged |
 
 In every screenshot below, **red boxes** circle what the step changed, and their **numbers** match the bullet points.
 
@@ -142,6 +143,17 @@ The user didn't like the background lines or the receipt, so the landing page we
 |---|---|
 | ![](screenshots/fd-hero-b.png) | ![](screenshots/fd-hero-a.png) |
 
+### 7 · A shorter landing page on phones — request, no skill
+
+The page went from **12.9 to 8.6 screens** on a phone (10,437 → 7,023 px at 375 × 812, −33%). Desktop is unchanged. Details per section: [docs/10-mobile-length.md](docs/10-mobile-length.md).
+
+- **Pricing as a swipeable row:** Growth first, the next plan peeking, and a "Swipe to compare the 3 plans" hint (1,696 → 859 px).
+- **Signals:** only the open goal shows its description, no chart, 3 rows in the panel (1,795 → 1,068 px).
+- **Duplicates hidden on phones:** the "Connected" panel (it repeated "Works with"), 2 of the 3 customer examples (they're in the case study).
+- **Value strip side by side**, "Works with" on one line, and less padding everywhere.
+
+Not in the /doc report yet: it covers steps 0 to 6.
+
 ---
 
 ## How the report was made: the `/doc` skill
@@ -240,8 +252,8 @@ To add a page: copy a file in `pages/`, set `data-page="yourId"` on its `<body>`
 | [report/gooseworks-report.pdf](report/gooseworks-report.pdf) | The full before/after report (also as [HTML](report/gooseworks-report.html)) |
 | [report/shots.js](report/shots.js) | The `/doc` shot list that produced the screenshots |
 | [screenshots/](screenshots/) | All before/after screenshots (`-b` = before, `-a` = after) |
-| [docs/](docs/) | The report of each skill and the change log of each step (01 to 09) |
-| [_versions/](_versions/) | The site as it was after each step (v0 to v5), plus the reverted v6 |
+| [docs/](docs/) | The report of each skill and the change log of each step (01 to 10) |
+| [_versions/](_versions/) | The site as it was after each step (v0 to v5), the reverted v6, and v5b (just before the mobile pass) |
 | [server.js](server.js) | Tiny static server, no dependencies |
 
 Images, logos and the real legal texts of gooseworks.ai are not copied. The wordmark is plain text, visuals are CSS mock-ups, and the pricing and "Your data" wording are placeholders.

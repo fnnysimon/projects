@@ -530,3 +530,85 @@ a.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-1); }
 .chip input:focus-visible + span { outline: 3px solid var(--focus); outline-offset: 2px; }
 .chips-field.is-invalid .chip span { border-color: var(--bad); }
 @media (prefers-reduced-motion: reduce) { .chip span { transition: none; } }
+
+/* ===================================================================
+   v7 · shorter mobile page (≤ 760px only). Desktop is unchanged.
+   Target: about 8 screens instead of 12.9. Nothing is removed from the
+   page's content that isn't shown elsewhere; see docs/10-mobile-length.md.
+   =================================================================== */
+.swipe-hint { display: none; }
+@media (max-width: 760px) {
+  /* 1 · tighter section rhythm */
+  section { padding: var(--s-8) 0; }
+  .section-tight { padding: var(--s-7) 0; }
+  .hero { padding: var(--s-7) 0 var(--s-6); }
+  .dash-wrap { padding-bottom: var(--s-7); }
+  .section-intro { margin-bottom: var(--s-5); }
+
+  /* 2 · Reads: the "Connected" panel repeats the "Works with" row in the hero */
+  #reads .feature { margin-top: var(--s-6); }
+  #reads .feature .panel-warm { display: none; }
+
+  /* 3 · Signals: only the open goal shows its description; no chart on phones */
+  .lever { padding: 12px 16px; min-height: 52px; }
+  .lever:not(.active) p { display: none; }
+  .lever-panel .chart { display: none; }
+  .lever-list { gap: 8px; }
+
+  /* 4 · Customer story: one example leak + the total */
+  .story-side .mini:not(.mini-total):nth-child(n+2) { display: none; }
+  .story-side .mini-total { margin-top: 0; }
+  .story blockquote { font-size: var(--fs-lg); }
+
+  /* 5 · Value strip: three numbers side by side, details dropped */
+  .value-strip { grid-template-columns: repeat(3, 1fr); }
+  .value-item { padding: var(--s-4) var(--s-2); }
+  .value-item:first-child { padding-left: 0; }
+  .value-item b { font-size: 26px; margin-bottom: var(--s-2); }
+  .value-item h3 { font-size: var(--fs-sm); margin: 0; }
+  .value-item p { display: none; }
+
+  /* 6 · Pricing: a swipeable row, Growth first, next card peeking */
+  .swipe-hint { display: block; font-size: var(--fs-sm); color: var(--ink-3); margin: 0 0 var(--s-2); }
+  .price-grid {
+    grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 84%; gap: var(--s-3);
+    overflow-x: auto; scroll-snap-type: x mandatory; overscroll-behavior-x: contain;
+    margin: 0 -24px; padding: 16px 24px 8px; scroll-padding: 0 24px; scrollbar-width: none;
+  }
+  .price-grid::-webkit-scrollbar { display: none; }
+  .price { scroll-snap-align: start; }
+  .price-note { margin-top: var(--s-4); }
+
+  /* 7 · Dashboard preview: smaller title, the 3 stats on one row */
+  .dash h2 { font-size: 26px; margin: var(--s-5) auto var(--s-3); }
+  .dash-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); text-align: center; font-size: var(--fs-xs); }
+  .dash-stats span { display: flex; flex-direction: column; gap: 2px; }
+  .dash-stats b { margin: 0; font-size: var(--fs-lg); }
+  .dash-cols { margin-top: var(--s-5); padding-top: var(--s-5); gap: var(--s-5); }
+
+  /* 8 · Signals panel: top signal + suggested fix + 1 more (the full list is in the call) */
+  .lever-panel[data-panel="customers"] > .row:nth-last-of-type(-n+2) { display: none; }
+
+  /* the open panel sits right under its goal on phones, so its title would repeat */
+  .lever-list .lever-panel .panel-head { display: none; }
+  .lever-list .lever-panel .row-first { margin-top: 0; padding-top: 0; }
+
+  /* 10 · "Works with": one line that scrolls sideways instead of three wrapped lines */
+  .stack-row { margin-top: var(--s-6); align-items: stretch; }
+  .stack-label { text-align: center; }
+  .stack-row ul { flex-wrap: nowrap; justify-content: flex-start; overflow-x: auto; scrollbar-width: none; margin: 0 -24px; padding: 0 24px;
+    -webkit-mask-image: linear-gradient(90deg, #000 85%, transparent); mask-image: linear-gradient(90deg, #000 85%, transparent); }
+  .stack-row ul::-webkit-scrollbar { display: none; }
+  .stack-row li { flex: none; }
+
+  /* 11 · Your data: tighter list */
+  .trust-list { gap: var(--s-3); }
+  .trust-list p { font-size: var(--fs-sm); }
+
+  /* 9 · FAQ, final CTA, footer: less empty space */
+  .faq-grid { gap: var(--s-4); }
+  .final { padding: var(--s-8) 0; }
+  .footer { padding: var(--s-7) 0 var(--s-6); }
+  .footer-grid { gap: var(--s-5) var(--s-4); }
+  .footer-bottom { margin-top: var(--s-6); padding-top: var(--s-5); gap: var(--s-3); }
+}
