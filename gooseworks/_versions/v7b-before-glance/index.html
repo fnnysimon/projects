@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Goose, a proactive growth agent for e-commerce · GooseWorks</title>
+  <meta name="description" content="Goose reads your ads, store and email, finds what to fix and where you can sell more, and tells you exactly how to fix it.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Doto:wght@700;800;900&family=Figtree:wght@400;500;600;700&family=Literata:opsz,wght@7..72,400;7..72,500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/styles.css">
+</head>
+<!-- data-root: path back to the site root. data-page: this page's route id in site.config.js -->
+<body data-root="" data-page="home">
+<div id="site-header"></div>
+
+<!-- Landing sections. Their order/visibility comes from LANDING_SECTIONS in site.config.js -->
+<main data-sections>
+
+  <!-- ============ HERO ============ -->
+  <section id="hero" class="hero">
+    <div class="container">
+      <span class="yc"><span class="yc-badge" aria-hidden="true">Y</span> Backed by Y Combinator</span>
+      <h1>Your proactive revenue agent</h1>
+      <!-- UX insight 1: promise matches today's product (the FAQ says Goose gives fix instructions; auto-fix is "in the future") -->
+      <p class="lead">Goose reads your ads, store and email, finds what to fix and where you can sell more, and tells you exactly how to fix it.</p>
+      <div class="cta-row">
+        <a class="btn btn-dark" data-route="cta" data-cta-label><span class="label">Book a call</span> <span class="arrow" aria-hidden="true"></span></a>
+        <a class="btn btn-ghost" data-route="cta2" data-cta-label="2"><span class="label">See a real report</span></a>
+      </div>
+      <small class="cta-sub" data-cta-sub></small>
+      <!-- UX insight 6: "does it work with my stack?" answered above the fold. List from the FAQ. -->
+      <div class="stack-row" aria-label="Works with">
+        <span class="stack-label">Works with</span>
+        <ul>
+          <li>Shopify</li><li>Meta Ads</li><li>Google Ads</li><li>Klaviyo</li><li>TikTok</li><li>Pinterest</li><li>Amazon</li><li>Triple Whale</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DASHBOARD PREVIEW ============ -->
+  <section id="dashboard" class="dash-wrap">
+    <div class="container">
+      <div class="dash reveal">
+        <div class="dash-top">
+          <span>Checked today, 7:02 am · Example</span>
+          <span class="signal-dots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        </div>
+        <h2>Goose found 23 revenue opportunities worth $41k/mo</h2>
+        <div class="dash-stats">
+          <span><b>65</b>signals analyzed</span>
+          <span><b>9</b>revenue leaks in your last campaign</span>
+          <span><b>$41.2k</b>Room to grow</span>
+        </div>
+        <div class="dash-cols">
+          <div class="dash-col">
+            <h3>Today's fixes <span class="tag">2</span></h3>
+            <div class="dash-cards">
+              <article class="issue">
+                <h4>6 ads point to a sold-out product</h4>
+                <p>Meta is still spending on a product Shopify shows at zero stock.</p>
+                <footer><span class="tag">FIX-2</span><span class="money">$880 a day</span></footer>
+              </article>
+              <article class="issue">
+                <h4>Purchases stopped recording</h4>
+                <p>The Meta pixel has missed checkouts for 4 days.</p>
+                <footer><span class="tag">FIX-3</span><span class="money">$3,800 untracked</span></footer>
+              </article>
+            </div>
+          </div>
+          <div class="dash-col">
+            <h3>Today's growth <span class="tag">2</span></h3>
+            <div class="dash-cards">
+              <article class="issue">
+                <h4>Winning ad held back by budget</h4>
+                <p>It runs out of budget by noon every day.</p>
+                <footer><span class="tag">GROW-1</span><span class="money">+$2,100 a month</span></footer>
+              </article>
+              <article class="issue">
+                <h4>Cart email 2 stopped sending</h4>
+                <p>Klaviyo has not sent it since Oct 12.</p>
+                <footer><span class="tag">GROW-4</span><span class="money">$2,300 a month</span></footer>
+              </article>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ CUSTOMER PROOF (moved up) ============ -->
+  <section id="customer" class="section-tight">
+    <div class="container">
+      <span class="eyebrow">Real customer · first 2 weeks</span>
+      <h2 class="section-title">16 real leaks found for Braxley Bands.</h2>
+      <div class="story reveal">
+        <div class="story-copy">
+          <div class="who"><span class="avatar" aria-hidden="true">B</span><div><b>Braxley Bands</b><br><span class="muted">Stretchy Apple Watch bands, Austin</span></div></div>
+          <blockquote>Their best converting email flows weren't sending to a big segment of users. Goose caught it in the first week.</blockquote>
+          <a class="text-link" data-route="caseStudy">Read the case study <span aria-hidden="true">→</span></a>
+        </div>
+        <div class="story-side">
+          <div class="mini"><span>Cart-abandoned flow didn't send to 41k users<small>Klaviyo · Shopify</small></span><b>−$7.3K a month</b></div>
+          <div class="mini"><span>Ads running on a sold-out product<small>Meta · Shopify</small></span><b>$550 a week</b></div>
+          <div class="mini"><span>Ad targeting drifted to the wrong segment<small>Meta</small></span><b>−41% orders</b></div>
+          <div class="mini mini-total"><small>16 leaks, found in 2 weeks</small><div class="xl">~$15.4K a month</div><small>At stake, estimated from Braxley's own numbers</small></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ HOW IT WORKS: READS + FINDS (dark) ============ -->
+  <section id="reads" class="dark-section">
+    <div class="container">
+      <h2 class="dots-title">Connect your store once.<br>Goose takes it from there.</h2>
+
+      <div class="feature reveal">
+        <div>
+          <span class="eyebrow">01 · Reads</span>
+          <h3>Every tool, read every day</h3>
+          <p>Connect Meta, Shopify, Klaviyo and Google in a few clicks. From then on Goose reads them every morning.</p>
+        </div>
+        <div class="panel-warm">
+          <div class="glass">
+            <div class="glass-head">Connected <span class="tag">Example</span></div>
+            <div class="conn"><span class="ico" style="background:#1877f2" aria-hidden="true">M</span><div><b>Meta Ads</b><small>Ads, spend and results</small></div><span class="status">Reading</span></div>
+            <div class="conn"><span class="ico" style="background:#5e8e3e" aria-hidden="true">S</span><div><b>Shopify</b><small>Your store and its pages</small></div><span class="status">Reading</span></div>
+            <div class="conn"><span class="ico" style="background:#232323" aria-hidden="true">K</span><div><b>Klaviyo</b><small>Flows and campaigns</small></div><span class="status">Reading</span></div>
+            <div class="conn"><span class="ico" style="background:#ea4335" aria-hidden="true">G</span><div><b>Google</b><small>Campaigns and site visits</small></div><span class="status">Reading</span></div>
+            <div class="chips"><span>TikTok</span><span>Pinterest</span><span>Triple Whale</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div id="finds" class="feature flip reveal">
+        <div>
+          <span class="eyebrow">02 · Finds</span>
+          <h3>Signals, checked and valued</h3>
+          <p>Each morning Goose tells you what changed, why it's real, and what it's worth to you.</p>
+        </div>
+        <div class="panel-warm">
+          <div class="stack">
+            <div class="sig"><div><b>Repeat orders falling</b><small>Shopify · $1,800 a month</small></div></div>
+            <div class="sig"><div><b>Slow on phones</b><small>Shopify · $1,100 a month</small></div></div>
+            <div class="sig"><div><b>Cost per sale jumped</b><small>Meta · $1,900 a month</small></div></div>
+            <div class="sig"><div><b>Ads on a sold-out product</b><small>Meta · Shopify · $190 a day</small></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SIGNALS (merged: intro + 4 goals with detail panel) ============
+       data-tabs-inline: on mobile the panel opens under the tapped goal -->
+  <section id="signals" data-tabs data-tabs-inline>
+    <div class="container">
+      <div class="section-intro">
+        <div>
+          <span class="eyebrow">03 · Acts</span>
+          <h2 class="section-title">Things to fix, and room to grow.</h2>
+        </div>
+        <p class="muted-lg">Goose watches over 100 signals, grouped by the goal they move. Ask about any of them in Claude, ChatGPT, Codex or Cursor.</p>
+      </div>
+      <div class="levers">
+        <div class="lever-list">
+          <button class="lever active" data-tab="customers"><b>Get more customers</b><p>Goose watches what each sale costs you, and finds where your ad money buys customers for less.</p></button>
+          <button class="lever" data-tab="convert"><b>Convert more visitors</b><p>Goose checks every ad against its page, and every page on phones and at checkout.</p></button>
+          <button class="lever" data-tab="aov"><b>Make more per customer</b><p>Goose watches your email flows and repeat buyers, so more customers come back for a second order.</p></button>
+          <button class="lever" data-tab="loss"><b>Stop losing money</b><p>Sold-out products, broken tracking and dead codes, caught the morning they happen.</p></button>
+        </div>
+        <div class="lever-panels">
+          <div class="lever-panel" data-panel="customers">
+            <div class="panel-head"><b>Get more customers</b><span class="pill">4 signals this week</span></div>
+            <div class="row row-first"><span class="muted">Top signal</span><span class="pill">Example</span></div>
+            <div class="row-title"><b>Cost per sale jumped</b><span class="money">$1,900 a month</span></div>
+            <small class="muted">Meta · this week</small>
+            <div class="chart">
+              <small class="muted">Cost per sale</small>
+              <div class="big">$41</div><small class="money">up from $28</small>
+              <svg viewBox="0 0 300 70" preserveAspectRatio="none" aria-hidden="true"><path d="M0 52 C30 50 50 56 80 54 S130 46 160 50 S210 40 240 30 S280 14 300 10" fill="none" stroke="#b8732c" stroke-width="2.5"/><circle cx="296" cy="11" r="4" fill="#b8732c"/></svg>
+              <div class="chart-axis muted"><span>2 weeks ago</span><span>Today</span></div>
+            </div>
+            <div class="row"><span>Suggested fix: move budget to your best ad</span><span class="pill">Fix</span></div>
+            <div class="row"><span>Best ad held back by budget</span><span>+$1,200 a month</span></div>
+            <div class="row"><span>Competitors bid on your name</span><span>$900 a month</span></div>
+            <div class="row"><span>Ads wearing out</span><span>$640 a month</span></div>
+          </div>
+          <div class="lever-panel" data-panel="convert" hidden>
+            <div class="panel-head"><b>Convert more visitors</b><span class="pill">3 signals this week</span></div>
+            <div class="row"><span>Ad price differs from the page</span><span>5 ads</span></div>
+            <div class="row"><span>Slow on phones</span><span>$1,100 a month</span></div>
+            <div class="row"><span>Checkout drop on mobile Safari</span><span>$760 a month</span></div>
+          </div>
+          <div class="lever-panel" data-panel="aov" hidden>
+            <div class="panel-head"><b>Make more per customer</b><span class="pill">3 signals this week</span></div>
+            <div class="row"><span>Cart email 2 stopped sending</span><span>$2,300 a month</span></div>
+            <div class="row"><span>Repeat orders falling</span><span>$1,800 a month</span></div>
+            <div class="row"><span>No post-purchase cross-sell flow</span><span>$950 a month</span></div>
+          </div>
+          <div class="lever-panel" data-panel="loss" hidden>
+            <div class="panel-head"><b>Stop losing money</b><span class="pill">3 signals this week</span></div>
+            <div class="row"><span>Ads on a sold-out product</span><span>$190 a day</span></div>
+            <div class="row"><span>Purchases stopped recording</span><span>$3,000 untracked</span></div>
+            <div class="row"><span>Discount code stopped working</span><span>$420 a month</span></div>
+          </div>
+          <a class="text-link panel-link" data-route="cta">See the signals on your store <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ VALUE: compact 3-stat strip ============ -->
+  <section id="value" class="section-tight">
+    <div class="container">
+      <div class="value-strip">
+        <div class="value-item"><b>10x</b><h3>More than you pay</h3><p>Goose typically finds 10x more revenue in your funnel than the subscription costs.</p></div>
+        <div class="value-item"><b>1 day</b><h3>Not a month</h3><p>A broken pixel or a stopped email is caught the next morning, not in the month-end report.</p></div>
+        <div class="value-item"><b>0 min</b><h3>Of your time</h3><p>No digging through Ads Manager, Shopify and Klaviyo. Goose brings you only what matters.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ YOUR DATA (UX insight 4) ============
+       Each line is grounded in the real site (FAQ, booking page "ready for your yes", Data deletion page),
+       but the exact wording MUST be confirmed by the GooseWorks team. No compliance claims on purpose. -->
+  <section id="trust" class="section-tight">
+    <div class="container">
+      <div class="trust">
+        <div class="trust-head">
+          <span class="eyebrow">Your data</span>
+          <h2 class="section-title">You stay in control of your accounts.</h2>
+        </div>
+        <ul class="trust-list">
+          <li><h3>What Goose reads</h3><p>Your ads, store and email data, to look for leaks and price them. Nothing else.</p></li>
+          <li><h3>What Goose changes</h3><p>Nothing without your yes. Each fix comes with clear steps, and you decide.</p></li>
+          <li><h3>Leave any time</h3><p>Disconnect an account or delete your data whenever you want. <a class="text-link" data-route="dataDeletion">How it works <span aria-hidden="true">→</span></a></p></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PRICING ============
+       Prices below are PLACEHOLDERS for the redesign — replace with real ones. -->
+  <section id="pricing">
+    <div class="container">
+      <div class="section-intro">
+        <h2 class="section-title">Simple plans.<br>No cut of your sales.</h2>
+        <p class="muted-lg">Pick by revenue. Every plan starts with a call where we show you your own leaks.</p>
+      </div>
+      <!-- Mobile: the plans become a swipeable row (one card tall instead of three). Hint shown on phones only. -->
+      <p class="swipe-hint" id="plans-hint">Swipe to compare the 3 plans <span aria-hidden="true">→</span></p>
+      <div class="price-grid" role="region" aria-label="Plans" aria-describedby="plans-hint">
+        <div class="price">
+          <div class="price-head"><small>Starter</small><div class="amount">$499<span>/mo</span></div></div>
+          <div class="price-body">
+            <p>For brands under $1M in revenue</p>
+            <ul><li>Store website and ad accounts</li><li>Shopify, website pixel, Meta or Google</li><li>Up to 30 signals</li><li>Your KPIs and brand identity</li></ul>
+            <a class="btn btn-ghost" data-route="cta" data-query="plan=starter" data-cta-label><span class="label">Book a call</span></a>
+          </div>
+        </div>
+        <div class="price price-featured">
+          <span class="badge">Most popular</span>
+          <div class="price-head"><small>Growth</small><div class="amount">$1,499<span>/mo</span></div></div>
+          <div class="price-body">
+            <p>For brands doing $1–10M in revenue</p>
+            <ul><li>Everything in Starter, plus your email funnel</li><li>Meta, Google and Klaviyo</li><li>Up to 75 signals</li><li>Your copy rules</li></ul>
+            <a class="btn btn-dark" data-route="cta" data-query="plan=growth" data-cta-label><span class="label">Book a call</span> <span class="arrow" aria-hidden="true"></span></a>
+          </div>
+        </div>
+        <div class="price">
+          <div class="price-head"><small>Business</small><div class="amount">Custom</div></div>
+          <div class="price-body">
+            <p>Your own growth manager does the work</p>
+            <ul><li>Everything in Growth</li><li>Every data source and all signals</li><li>Custom connectors and context</li><li>Compliance and language rules</li><li>Dedicated growth manager</li></ul>
+            <a class="btn btn-ghost" data-route="cta" data-query="plan=business" data-cta-label><span class="label">Book a call</span></a>
+          </div>
+        </div>
+      </div>
+      <p class="price-note">Not ready for a call? <a class="text-link" data-route="cta2" data-cta-label="2">See a real report</a> from a customer's first 2 weeks.</p>
+    </div>
+  </section>
+
+  <!-- ============ FAQ ============ -->
+  <section id="faq">
+    <div class="container faq-grid">
+      <h2 class="section-title">Got questions?</h2>
+      <div>
+        <div class="faq-item open">
+          <button aria-expanded="true">How does Goose work?</button>
+          <div class="answer">Goose continuously monitors all your business systems and funnels to identify revenue leaks and opportunities. It connects to Shopify, Meta, Google, Klaviyo, TikTok and more to find where you're leaving money on the table.</div>
+        </div>
+        <div class="faq-item">
+          <button aria-expanded="false">Does Goose fix the issues?</button>
+          <div class="answer">Goose will identify issues and show you instructions on how to fix them. In the future, Goose will fix some issues automatically.</div>
+        </div>
+        <div class="faq-item">
+          <button aria-expanded="false">What systems does Goose integrate with?</button>
+          <div class="answer">Shopify, Meta Ads, Google Ads, Google Analytics, Klaviyo, TikTok, Pinterest Ads, Amazon Seller Central, Triple Whale and your website. We can build custom connectors as needed.</div>
+        </div>
+        <div class="faq-item">
+          <button aria-expanded="false">What kind of issues can Goose find?</button>
+          <div class="answer">Goose monitors over 100 signals to find revenue leaks and opportunities. For example:
+            <ul><li>Ads running on a sold-out product</li><li>Purchases that stopped recording</li><li>An email flow that stopped sending</li><li>A discount code that stopped working</li><li>An ad that doesn't match its page</li><li>Your best ad held back by budget</li><li>Competitors bidding on your name</li></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FINAL CTA ============ -->
+  <section id="final-cta" class="final">
+    <div class="container">
+      <h2>See where your funnel leaks</h2>
+      <p>Book a call. We'll show you where you're losing sales and what to fix first.</p>
+      <div class="cta-row">
+        <a class="btn btn-light" data-route="cta" data-cta-label><span class="label">Book a call</span> <span class="arrow" aria-hidden="true"></span></a>
+        <a class="btn btn-ghost-light" data-route="cta2" data-cta-label="2"><span class="label">See a real report</span></a>
+      </div>
+      <small data-cta-sub></small>
+    </div>
+  </section>
+
+</main>
+
+<div id="site-footer"></div>
+<script src="site.config.js"></script>
+<script src="assets/site.js"></script>
+</body>
+</html>

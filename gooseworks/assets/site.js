@@ -24,6 +24,7 @@
     return ROOT + r.path + (anchor ? "#" + anchor : "");
   }
   window.SITE.href = href;
+  const linkHref = (l) => l.contact ? "mailto:" + S.CONTACT.email : (l.href || href(l.route));
 
   /* ---------- banner (outside the sticky header, dismissible) ---------- */
   const headerSlot = document.getElementById("site-header");
@@ -52,7 +53,7 @@
     S.NAV.forEach((l) => {
       const a = document.createElement("a");
       a.textContent = l.label;
-      a.href = l.href || href(l.route);
+      a.href = linkHref(l);
       if (l.route && l.route.split("#")[0] === PAGE && !l.route.includes("#")) a.setAttribute("aria-current", "page");
       nav.appendChild(a);
     });
@@ -73,7 +74,7 @@
   const footerSlot = document.getElementById("site-footer");
   if (footerSlot) {
     const cols = S.FOOTER.map((c) => `<div class="footer-col"><h2>${c.title}</h2><ul>${
-      c.links.map((l) => `<li><a href="${l.href || href(l.route)}">${l.label}</a></li>`).join("")
+      c.links.map((l) => `<li><a href="${linkHref(l)}">${l.label}</a></li>`).join("")
     }</ul></div>`).join("");
     footerSlot.innerHTML = `<footer class="footer"><div class="container">
       <div class="footer-grid">${cols}</div>

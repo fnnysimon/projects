@@ -36,6 +36,10 @@ window.SITE = {
   /* Lower-commitment CTA — data-route="cta2" */
   CTA2: { label: "See a real report", route: "caseStudy" },
 
+  /* Direct contact, shown in the header menu, the footer and the booking card.
+     PLACEHOLDER address: replace with GooseWorks' real one. */
+  CONTACT: { label: "Contact", email: "hello@example.com" },
+
   /* Thin announcement bar above the header. Set to null to hide it. */
   BANNER: { text: "Looking for our creative agent?", linkLabel: "See it", route: "creative" },
 
@@ -45,13 +49,14 @@ window.SITE = {
     { label: "Customer story",   route: "caseStudy" },
     { label: "Pricing",          route: "home#pricing" },
     { label: "Creative agent",   route: "creative" },
+    { label: "Contact",          contact: true },   // mailto: SITE.CONTACT.email
   ],
 
   /* Footer columns */
   FOOTER: [
     { title: "Start",   links: [{ label: "Book a call", route: "book" }] },
     { title: "Explore", links: [{ label: "Creative agent", route: "creative" }, { label: "Skills", route: "skills" }] },
-    { title: "Company", links: [{ label: "About", route: "about" }, { label: "Contact us", href: "mailto:hello@example.com" }] },
+    { title: "Company", links: [{ label: "About", route: "about" }, { label: "Email the founders", contact: true }] },
     { title: "Legal",   links: [{ label: "Privacy", route: "privacy" }, { label: "Terms", route: "terms" }, { label: "Data deletion", route: "dataDeletion" }] },
   ],
 

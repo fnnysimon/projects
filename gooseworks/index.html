@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Goose, a proactive growth agent for e-commerce · GooseWorks</title>
+  <title>Goose finds the revenue your online store is losing · GooseWorks</title>
   <meta name="description" content="Goose reads your ads, store and email, finds what to fix and where you can sell more, and tells you exactly how to fix it.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,17 +18,64 @@
 <main data-sections>
 
   <!-- ============ HERO ============ -->
+  <!-- v8 "at a glance": 1) what it is (headline + 3 steps), 2) key facts on the first screen,
+       3) book a call in 2 clicks (pick a time → email → Confirm), right in the hero. -->
   <section id="hero" class="hero">
-    <div class="container">
-      <span class="yc"><span class="yc-badge" aria-hidden="true">Y</span> Backed by Y Combinator</span>
-      <h1>Your proactive revenue agent</h1>
-      <!-- UX insight 1: promise matches today's product (the FAQ says Goose gives fix instructions; auto-fix is "in the future") -->
-      <p class="lead">Goose reads your ads, store and email, finds what to fix and where you can sell more, and tells you exactly how to fix it.</p>
-      <div class="cta-row">
-        <a class="btn btn-dark" data-route="cta" data-cta-label><span class="label">Book a call</span> <span class="arrow" aria-hidden="true"></span></a>
-        <a class="btn btn-ghost" data-route="cta2" data-cta-label="2"><span class="label">See a real report</span></a>
+    <div class="container hero-grid">
+      <div class="hero-intro">
+        <span class="yc"><span class="yc-badge" aria-hidden="true">Y</span> Backed by Y Combinator</span>
+        <span class="eyebrow hero-for">For e-commerce brands</span>
+        <h1>Find the revenue your online store is losing</h1>
+        <!-- UX insight 1: promise matches today's product (the FAQ says Goose gives fix instructions; auto-fix is "in the future") -->
+        <p class="lead">Goose is a proactive revenue agent. It reads your ads, store and email every morning, finds what's broken or holding sales back, and tells you exactly how to fix it.</p>
       </div>
-      <small class="cta-sub" data-cta-sub></small>
+
+      <ol class="how-steps" aria-label="How it works">
+        <li><b>1</b>Connect Shopify, ads and email</li>
+        <li><b>2</b>Goose checks them every morning</li>
+        <li><b>3</b>You get fixes, each priced in $</li>
+      </ol>
+
+      <!-- Key facts: each one links to its details. The price is a PLACEHOLDER, like the pricing section. -->
+      <ul class="key-facts" aria-label="Key facts">
+        <li><a data-route="home#pricing"><b>From $499/mo</b><span>No cut of your sales</span></a></li>
+        <li><a data-route="cta2"><b>~$15.4K/mo</b><span>found for Braxley in 2 weeks</span></a></li>
+        <li><a data-route="home#reads"><b>A few clicks</b><span>to connect your tools</span></a></li>
+        <li><a data-route="home#trust"><b>Your yes first</b><span>nothing changes without it</span></a></li>
+      </ul>
+
+      <!-- Booking card: logic in assets/booking.js (same flow as pages/book.html, 6 slots here) -->
+      <form class="form booking hero-book" data-booking data-slots="6" novalidate aria-labelledby="bk-title">
+        <div class="sr-only" aria-live="polite" data-live></div>
+        <div class="step-panel" data-step="1">
+          <h2 class="step-title" tabindex="-1" id="bk-title">Book a 15-minute call</h2>
+          <p class="muted step-sub" data-tz>Free, 15 minutes on video.</p>
+          <div class="slot-status" data-slot-status hidden></div>
+          <div class="slots" data-slot-list role="group" aria-labelledby="bk-title"></div>
+          <div class="book-confirm" data-confirm-area hidden>
+            <div class="field">
+              <label for="f-email">Work email, for the invite</label>
+              <input id="f-email" type="email" name="email" placeholder="you@brand.com" autocomplete="email" inputmode="email" aria-describedby="f-email-err">
+              <p class="field-error" id="f-email-err" hidden></p>
+            </div>
+            <p class="form-error" data-submit-err hidden></p>
+            <button class="btn btn-dark btn-block confirm-btn" type="submit"><span class="spinner" aria-hidden="true"></span><span class="confirm-label">Confirm</span></button>
+            <p class="slow-note" data-slow hidden>Still working, this can take a few seconds…</p>
+          </div>
+          <p class="book-alt"><a class="text-link" data-route="book">More times <span aria-hidden="true">→</span></a><a class="text-link" data-contact>Email the founders</a></p>
+        </div>
+        <div class="step-panel success" data-step="2" hidden>
+          <div class="success-mark" aria-hidden="true">✓</div>
+          <h2 class="step-title" tabindex="-1">You're booked</h2>
+          <p class="success-when" data-when></p>
+          <p class="muted" data-mail></p>
+          <a class="btn btn-dark btn-block" data-ics download="gooseworks-call.ics">Add to calendar</a>
+          <a class="text-link" data-route="cta2"><span>See a real report</span></a>
+          <small class="muted">Demo: nothing was sent.</small>
+        </div>
+      </form>
+    </div>
+    <div class="container">
       <!-- UX insight 6: "does it work with my stack?" answered above the fold. List from the FAQ. -->
       <div class="stack-row" aria-label="Works with">
         <span class="stack-label">Works with</span>
@@ -326,5 +373,6 @@
 <div id="site-footer"></div>
 <script src="site.config.js"></script>
 <script src="assets/site.js"></script>
+<script src="assets/booking.js"></script>
 </body>
 </html>

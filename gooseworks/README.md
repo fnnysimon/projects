@@ -16,12 +16,13 @@ A practice project for Claude skills, based on a real problem: the website of **
 
 | | Before | After |
 |---|---|---|
-| Average clicks to book a call (11 paths) | 8.0 | 5.8 (−27%) |
+| Average clicks to book a call (11 paths) | 8.0 | 2.9 (−64%) |
+| Clicks to book from the landing page | 8 | 2 (pick a time, then Confirm) |
 | Clicks in the booking form, coming from a pricing card | 7 | 4 |
 | Contrast of the light grey text | 3.2:1 | 5.1:1 |
 | Font sizes in the CSS | 18 | 7 tokens |
 | Spacing values off the 4px grid | 99 | 0 |
-| Mobile landing length, in screens (375 × 812) | 14.5 | 8.6 |
+| Mobile landing length, in screens (375 × 812) | 14.5 | 9.1 (8.6 before step 8 put the booking in the hero) |
 
 ## Timeline
 
@@ -35,6 +36,7 @@ A practice project for Claude skills, based on a real problem: the website of **
 | 5 | Request, no skill | Booking, pricing | Fewer clicks: website from the email, revenue in one tap, plan passed from pricing |
 | 6 | `/frontend-design` | Landing | "Revenue ledger" art direction, tried then **reverted** |
 | 7 | Request, no skill | Landing (phones only) | Shorter mobile page: 12.9 → 8.6 screens, desktop unchanged |
+| 8 | Request, no skill | Landing, booking | The essentials at a glance: clear topic, 4 key facts on the first screen, book a call in 2 clicks |
 
 In every screenshot below, **red boxes** circle what the step changed, and their **numbers** match the bullet points.
 
@@ -161,6 +163,18 @@ The page went from **12.9 to 8.6 screens** on a phone (10,437 → 7,023 px at 37
 | <img src="screenshots/mb-value-b.png" width="300" alt=""> | <img src="screenshots/mb-value-a.png" width="300" alt=""> |
 | <img src="screenshots/mb-hero-b.png" width="300" alt=""> | <img src="screenshots/mb-hero-a.png" width="300" alt=""> |
 
+### 8 · The essentials at a glance — request, no skill
+
+The request: the visitor should see, at a glance, what the startup does, the key information, and a way to contact them or book a demo in 2 clicks max. Details and click table: [docs/11-at-a-glance.md](docs/11-at-a-glance.md).
+
+- **What it does:** new headline "Find the revenue your online store is losing", a "For e-commerce brands" label, and 3 steps (connect → Goose checks every morning → fixes priced in $).
+- **Key facts on the first screen:** price, the Braxley result, setup and "your yes first", each linking to its details.
+- **Book in 2 clicks:** the next free times are in the hero. Pick one, type your work email, Confirm. Website, revenue and ad spend became optional questions after the booking. Average clicks to a booked call: 5.8 → 2.9.
+- **Direct contact:** "Contact" in the header, "Email the founders" in the booking card and the footer (one address in `site.config.js`).
+- Trade-off: the phone page is half a screen longer (8.6 → 9.1). Still placeholders: the price and the contact address.
+
+Not in the /doc report yet: it covers steps 0 to 7.
+
 ---
 
 ## How the report was made: the `/doc` skill
@@ -254,13 +268,13 @@ To add a page: copy a file in `pages/`, set `data-page="yourId"` on its `<body>`
 
 | Path | What it is |
 |---|---|
-| [index.html](index.html), [pages/](pages/) | The current site (v7): landing, booking, case study, creative agent, about, skills, legal placeholders |
-| [site.config.js](site.config.js) | Routes, nav, footer, banner, CTAs, landing section order |
+| [index.html](index.html), [pages/](pages/) | The current site (v8): landing, booking, case study, creative agent, about, skills, legal placeholders |
+| [site.config.js](site.config.js) | Routes, nav, footer, banner, CTAs, contact address, landing section order |
 | [report/gooseworks-report.pdf](report/gooseworks-report.pdf) | The full before/after report (also as [HTML](report/gooseworks-report.html)) |
 | [report/shots.js](report/shots.js) | The `/doc` shot list that produced the screenshots |
 | [screenshots/](screenshots/) | All before/after screenshots (`-b` = before, `-a` = after) |
-| [docs/](docs/) | The report of each skill and the change log of each step (01 to 10) |
-| [_versions/](_versions/) | The site as it was after each step (v0 to v5), the reverted v6, and v5b (just before the mobile pass) |
+| [docs/](docs/) | The report of each skill and the change log of each step (01 to 11) |
+| [_versions/](_versions/) | The site as it was after each step (v0 to v5), the reverted v6, v5b (just before the mobile pass) and v7b (just before step 8) |
 | [server.js](server.js) | Tiny static server, no dependencies |
 
 Images, logos and the real legal texts of gooseworks.ai are not copied. The wordmark is plain text, visuals are CSS mock-ups, and the pricing and "Your data" wording are placeholders.

@@ -1,157 +1,70 @@
-/* Booking flow — implements docs/06-interaction-spec-booking.md
+/* Booking flow — v8 "2 clicks": pick a time (click 1) → type your email → Confirm (click 2).
+   Brand details (website, revenue, ad spend) moved AFTER the booking, as optional questions.
+   Used on the landing hero (6 slots) and on pages/book.html (9 slots): any <form data-booking>.
+   Behaviour kept from docs/06-interaction-spec-booking.md: errors, skeleton, slow/timeout, taken slot, draft, .ics.
    Demo only: the "API" is simulated. Add ?demo=slow|error|taken|empty|offline to the URL to see each state. */
 (function () {
-  const form = document.getElementById("book-form");
+  const form = document.querySelector("form[data-booking]");
   if (!form) return;
 
   /* ---------- config (numbers from the spec's Timing table) ---------- */
-  const T = {
-    debounce: 300,      // URL check after typing stops (< ~400 ms Doherty threshold)
-    skeletonDelay: 300, // show slot skeleton only if loading takes longer than this
-    slow: 4000,         // switch to "Still working…"
-    timeout: 15000,     // give up and show an error
-  };
+  const T = { skeletonDelay: 300, slow: 4000, timeout: 15000 };
   const DEMO = new URLSearchParams(location.search).get("demo") || "";
-  const FAKE = { slots: 650, submit: DEMO === "slow" ? 6000 : 1200 }; // simulated API latency
+  const FAKE = { slots: 650, submit: DEMO === "slow" ? 6000 : 1200 };
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)");
   const TZ = Intl.DateTimeFormat().resolvedOptions().timeZone || "your time zone";
   const DRAFT_KEY = "book-draft";
+  const COUNT = +form.dataset.slots || 9;
+  const CONTACT = (window.SITE && window.SITE.CONTACT) || { email: "hello@example.com" };
 
   const $ = (sel) => form.querySelector(sel);
-  const live = $("#book-live");
-  const indicator = $("#step-indicator");
+  const live = $("[data-live]");
   const panels = [...form.querySelectorAll(".step-panel")];
-  const fields = { email: $("#f-email"), site: $("#f-site"), revenue: $("#f-revenue"), spend: $("#f-spend") };
-  const slotsEl = $("#slots"), slotStatus = $("#slot-status"), slotErr = $("#slot-err"), submitErr = $("#submit-err");
-  const confirmBtn = $(".confirm-btn"), confirmLabel = $(".confirm-label"), backBtn = $('[data-action="back"]'), slowNote = $("#slow-note");
+  const email = $("#f-email"), emailErr = $("#f-email-err");
+  const slotsEl = $("[data-slot-list]"), slotStatus = $("[data-slot-status]"), submitErr = $("[data-submit-err]");
+  const confirmArea = $("[data-confirm-area]");
+  const confirmBtn = $(".confirm-btn"), confirmLabel = $(".confirm-label"), slowNote = $("[data-slow]");
 
   const state = { step: 1, slot: null, slots: [], busy: false, takenOnce: false };
-  const radios = () => [...form.querySelectorAll('input[name="revenue"]')];
-  const val = (name) => name === "revenue" ? ((radios().find((r) => r.checked) || {}).value || "") : fields[name].value;
-  const setRevenue = (v) => radios().forEach((r) => { r.checked = r.value === v; });
+  const announce = (msg) => { live.textContent = ""; setTimeout(() => (live.textContent = msg), 30); };
 
   /* ---------- draft (sessionStorage, never required to work) ---------- */
   const draft = {
     load() { try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || "{}"); } catch (e) { return {}; } },
-    save() {
-      try {
-        sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
-          email: fields.email.value, site: fields.site.value, revenue: val("revenue"), spend: fields.spend.value,
-          slot: state.slot ? state.slot.iso : null,
-        }));
-      } catch (e) {}
-    },
+    save() { try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify({ email: email.value, slot: state.slot ? state.slot.iso : null })); } catch (e) {} },
     clear() { try { sessionStorage.removeItem(DRAFT_KEY); } catch (e) {} },
   };
 
-  const announce = (msg) => { live.textContent = ""; setTimeout(() => (live.textContent = msg), 30); };
-
-  /* ---------- validation ---------- */
-  const normaliseSite = (v) => v.trim().replace(/^https?:\/\//i, "").replace(/^www\./i, "").replace(/\/+$/, "");
-  const rules = {
-    email(v) {
-      v = v.trim();
-      if (!v) return "Enter your work email so we can send the invite.";
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return "This doesn't look like an email. Check for a missing @ or dot.";
-      return "";
-    },
-    site(v) {
-      if (!v.trim()) return "Add your store's website. We look at it before the call.";
-      if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+(\/\S*)?$/i.test(normaliseSite(v))) return "We couldn't read this address. Try the format yourbrand.com.";
-      return "";
-    },
-    revenue(v) { return v ? "" : "Pick your revenue range so we come prepared."; },
+  /* ---------- email validation: first check on blur or Confirm, then live ---------- */
+  const emailRule = (v) => {
+    v = v.trim();
+    if (!v) return "Enter your work email so we can send the invite.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) return "This doesn't look like an email. Check for a missing @ or dot.";
+    return "";
   };
-
-  function setError(name, msg) {
-    const input = fields[name], err = $("#f-" + name + "-err");
-    if (name === "revenue") { input.classList.toggle("is-invalid", !!msg); radios().forEach((r) => r.setAttribute("aria-invalid", msg ? "true" : "false")); }
-    input.setAttribute("aria-invalid", msg ? "true" : "false");
-    err.hidden = !msg;
-    if (msg) { err.textContent = msg; err.classList.remove("in"); void err.offsetWidth; err.classList.add("in"); }
+  function checkEmail() {
+    const msg = emailRule(email.value);
+    email.setAttribute("aria-invalid", msg ? "true" : "false");
+    emailErr.hidden = !msg;
+    if (msg) { emailErr.textContent = msg; emailErr.classList.remove("in"); void emailErr.offsetWidth; emailErr.classList.add("in"); }
+    return !msg;
   }
-  const check = (name) => { const msg = rules[name](val(name)); setError(name, msg); return !msg; };
-  const focusField = (name) => (name === "revenue" ? radios()[0] : fields[name]).focus();
-
-  Object.keys(rules).forEach((name) => {
-    const input = fields[name];
-    let timer;
-    // first check on blur — never scold while typing
-    input.addEventListener("blur", () => { if (input.value || input.dataset.touched) check(name); input.dataset.touched = "1"; });
-    // once flagged, re-check live (site debounced) so the error clears the moment it's fixed
-    input.addEventListener(input.tagName === "SELECT" || input.tagName === "FIELDSET" ? "change" : "input", () => {
-      draft.save();
-      if (input.getAttribute("aria-invalid") !== "true") return;
-      if (name === "site") { clearTimeout(timer); timer = setTimeout(() => check(name), T.debounce); }
-      else check(name);
-    });
-  });
-  fields.spend.addEventListener("change", draft.save);
-
-  /* fewer taps: pre-fill the store website from a work email's domain (dana@braxley.com → braxley.com) */
-  const FREE_MAIL = /^(gmail|googlemail|yahoo|ymail|hotmail|outlook|live|msn|icloud|me|mac|aol|proton|protonmail|pm|gmx|mail|yandex|zoho|free|orange|laposte|sfr|wanadoo|hey)./i;
-  const siteHint = $("#f-site-hint"), siteHintText = siteHint.textContent;
-  fields.email.addEventListener("blur", () => {
-    if (rules.email(fields.email.value)) return;
-    const domain = fields.email.value.trim().split("@")[1].toLowerCase();
-    if (FREE_MAIL.test(domain)) return;
-    if (!fields.site.value.trim() || fields.site.dataset.autofilled === "1") {
-      fields.site.value = domain; fields.site.dataset.autofilled = "1";
-      siteHint.textContent = "Filled in from your email. Change it if your store is elsewhere.";
-      if (fields.site.getAttribute("aria-invalid") === "true") check("site");
-      draft.save();
-    }
-  });
-  fields.site.addEventListener("input", () => { fields.site.dataset.autofilled = "0"; siteHint.textContent = siteHintText; });
-
-  /* fewer taps: coming from a pricing card preselects the matching revenue band */
-  const PLAN_BAND = { starter: "Under $1M", growth: "$1–10M", business: "$10M+" };
-  const plan = (new URLSearchParams(location.search).get("plan") || "").toLowerCase();
-  fields.site.addEventListener("blur", () => { // tolerant input: silently tidy the address
-    if (!rules.site(fields.site.value)) fields.site.value = normaliseSite(fields.site.value);
-  });
-
-  /* ---------- step changes (focus + motion) ---------- */
-  const LABELS = { 1: "Step 1 of 2 · Your brand", 2: "Step 2 of 2 · Pick a time", 3: "" };
-
-  function goStep(n, dir = "forward") {
-    const from = panels.find((p) => !p.hidden), to = panels.find((p) => +p.dataset.step === n);
-    const h0 = form.offsetHeight;
-    from.hidden = true; to.hidden = false;
-    state.step = n;
-    indicator.textContent = LABELS[n]; indicator.hidden = !LABELS[n];
-
-    if (!reduced.matches) {
-      // panel slides in the direction of travel; form height eases between steps
-      to.classList.remove("enter-forward", "enter-back"); void to.offsetWidth;
-      to.classList.add(dir === "back" ? "enter-back" : "enter-forward");
-      const h1 = form.offsetHeight;
-      form.style.height = h0 + "px"; void form.offsetHeight;
-      form.classList.add("is-resizing"); form.style.height = h1 + "px";
-      setTimeout(() => { form.classList.remove("is-resizing"); form.style.height = ""; }, 220);
-    }
-    // move focus to the step heading so screen readers read "Pick a time" etc.
-    const title = to.querySelector(".step-title");
-    title.focus({ preventScroll: true });
-    const top = form.getBoundingClientRect().top;
-    if (top < 70 || top > innerHeight * 0.6) form.scrollIntoView({ block: "start", behavior: reduced.matches ? "auto" : "smooth" });
-  }
+  email.addEventListener("blur", () => { if (email.value) checkEmail(); });
+  email.addEventListener("input", () => { draft.save(); if (email.getAttribute("aria-invalid") === "true") checkEmail(); });
 
   /* ---------- slots ---------- */
   function makeSlots() {
-    // next 3 working days, 3 times each, in the visitor's time zone (demo data)
+    // next working days, 3 times each, in the visitor's time zone (demo data)
     const out = [], d = new Date(); d.setHours(0, 0, 0, 0);
-    while (out.length < 9) {
+    while (out.length < COUNT) {
       d.setDate(d.getDate() + 1);
       if (d.getDay() === 0 || d.getDay() === 6) continue;
       for (const [h, m] of [[10, 0], [14, 30], [16, 0]]) {
+        if (out.length >= COUNT) break;
         const t = new Date(d); t.setHours(h, m);
-        out.push({
-          iso: t.toISOString(), date: t,
+        out.push({ iso: t.toISOString(), date: t,
           day: t.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }),
-          time: t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }),
-          taken: false,
-        });
+          time: t.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }), taken: false });
       }
     }
     return out;
@@ -172,40 +85,45 @@
     updateConfirm();
   }
 
-  function selectSlot(s) {
+  function selectSlot(s, quiet) {
     if (state.busy || s.taken) return;
     state.slot = s;
     slotsEl.querySelectorAll(".slot").forEach((b) => b.setAttribute("aria-pressed", b.dataset.iso === s.iso ? "true" : "false"));
-    slotErr.hidden = true; submitErr.hidden = true;
+    submitErr.hidden = true;
+    const wasHidden = confirmArea.hidden;
+    confirmArea.hidden = false;
+    if (wasHidden && !reduced.matches) { confirmArea.classList.remove("in"); void confirmArea.offsetWidth; confirmArea.classList.add("in"); }
     updateConfirm(); draft.save();
+    if (quiet) return;
+    // the next action is the email: take the visitor there (or straight to Confirm if it's already filled)
+    (emailRule(email.value) ? email : confirmBtn).focus({ preventScroll: true });
+    const r = confirmArea.getBoundingClientRect();
+    if (r.bottom > innerHeight) confirmArea.scrollIntoView({ block: "nearest", behavior: reduced.matches ? "auto" : "smooth" });
+    announce(`${slotText(s)} selected. Enter your email, then confirm.`);
   }
 
-  function updateConfirm() {
-    confirmLabel.textContent = state.slot ? `Confirm ${slotText(state.slot)}` : "Confirm";
-  }
+  function updateConfirm() { confirmLabel.textContent = state.slot ? `Confirm ${slotText(state.slot)}` : "Confirm"; }
 
   function showSlotStatus(kind) {
-    slotStatus.hidden = !kind;
+    slotStatus.hidden = !kind || kind === "loading";
     slotsEl.hidden = !!kind && kind !== "loading";
     if (kind === "loading") {
-      slotStatus.hidden = true;
-      slotsEl.innerHTML = Array.from({ length: 6 }, () => '<span class="slot skeleton" aria-hidden="true"></span>').join("");
+      slotsEl.innerHTML = Array.from({ length: Math.min(COUNT, 6) }, () => '<span class="slot skeleton" aria-hidden="true"></span>').join("");
       slotsEl.setAttribute("aria-busy", "true");
     } else slotsEl.removeAttribute("aria-busy");
     if (kind === "error") {
-      slotStatus.innerHTML = `<p>We couldn't load times. Check your connection.</p><button type="button" class="btn btn-ghost btn-sm" data-action="retry-slots">Retry</button>`;
+      slotStatus.innerHTML = `<p>We couldn't load times. Check your connection.</p><button type="button" class="btn btn-ghost btn-sm">Retry</button>`;
       slotStatus.querySelector("button").addEventListener("click", loadSlots);
       announce("We couldn't load times.");
     }
     if (kind === "empty") {
-      slotStatus.innerHTML = `<p>No times left this week.</p><a class="text-link" href="mailto:hello@example.com">Email us instead <span aria-hidden="true">→</span></a>`;
+      slotStatus.innerHTML = `<p>No times left this week.</p><a class="text-link" href="mailto:${CONTACT.email}">Email the founders instead <span aria-hidden="true">→</span></a>`;
       announce("No times left this week.");
     }
   }
 
   let slotsLoadedOnce = false;
   function loadSlots() {
-    if (slotsLoadedOnce && state.slots.length) { renderSlots(); return; }
     const skeletonTimer = setTimeout(() => showSlotStatus("loading"), T.skeletonDelay);
     setTimeout(() => {
       clearTimeout(skeletonTimer);
@@ -213,10 +131,10 @@
       if (DEMO === "empty") { showSlotStatus("empty"); return; }
       slotsLoadedOnce = true;
       state.slots = makeSlots();
-      const saved = draft.load().slot;
-      state.slot = state.slots.find((s) => s.iso === saved) || null;
       showSlotStatus(null);
       renderSlots();
+      const saved = state.slots.find((s) => s.iso === draft.load().slot);
+      if (saved) selectSlot(saved, true);
     }, FAKE.slots);
   }
 
@@ -225,7 +143,7 @@
     state.busy = on;
     confirmBtn.setAttribute("aria-busy", on ? "true" : "false");
     confirmBtn.classList.toggle("is-busy", on);
-    backBtn.disabled = on;
+    email.readOnly = on;
     slotsEl.querySelectorAll(".slot").forEach((b) => { b.disabled = on || b.classList.contains("taken"); });
     if (on) { confirmLabel.textContent = "Booking…"; announce("Booking your call…"); }
     else { updateConfirm(); slowNote.hidden = true; }
@@ -237,29 +155,22 @@
     announce(msg);
   }
 
-  function fakeBook() {
-    return new Promise((resolve, reject) => setTimeout(() => {
-      if (DEMO === "error") return reject("network");
-      if (DEMO === "taken" && !state.takenOnce) { state.takenOnce = true; return reject("taken"); }
-      resolve();
-    }, FAKE.submit));
-  }
+  const fakeBook = () => new Promise((resolve, reject) => setTimeout(() => {
+    if (DEMO === "error") return reject("network");
+    if (DEMO === "taken" && !state.takenOnce) { state.takenOnce = true; return reject("taken"); }
+    resolve();
+  }, FAKE.submit));
 
   function confirm() {
-    if (state.busy) return;
-    if (!state.slot) {
-      slotErr.textContent = "Pick a time to continue."; slotErr.hidden = false;
-      const first = slotsEl.querySelector(".slot:not(:disabled)");
-      if (first) first.focus();
-      return;
-    }
+    if (state.busy || !state.slot) return;
+    if (!checkEmail()) { email.focus(); return; }
     submitErr.hidden = true;
     setBusy(true);
     const slowTimer = setTimeout(() => { slowNote.hidden = false; announce("Still working."); }, T.slow);
     let timedOut = false;
     const timeout = setTimeout(() => {
       timedOut = true; clearTimeout(slowTimer); setBusy(false);
-      showSubmitError("This is taking too long. Your details are saved. Try again, or email hello@example.com.");
+      showSubmitError(`This is taking too long. Your details are saved. Try again, or email ${CONTACT.email}.`);
     }, T.timeout);
 
     fakeBook().then(() => {
@@ -272,13 +183,11 @@
       if (why === "taken") {
         const lost = state.slot; lost.taken = true; state.slot = null;
         renderSlots();
-        showSubmitError(`Someone just took ${slotText(lost)}. Here are the times still free.`);
+        showSubmitError(`Someone just took ${slotText(lost)}. Pick another time, your email is kept.`);
         confirmLabel.textContent = "Confirm";
         const first = slotsEl.querySelector(".slot:not(:disabled)");
         if (first) first.focus();
-      } else {
-        showSubmitError("We couldn't book the call. Nothing was lost. Try again.");
-      }
+      } else showSubmitError("We couldn't book the call. Nothing was lost. Try again.");
     });
   }
 
@@ -294,32 +203,47 @@
 
   function showSuccess() {
     const s = state.slot;
-    $("#success-when").innerHTML = `For <b>${slotText(s)}</b> <span class="muted">(${TZ})</span>`;
-    $("#success-mail").textContent = `A calendar invite is on its way to ${fields.email.value.trim()}.`;
-    try { $("#add-cal").href = URL.createObjectURL(new Blob([ics(s)], { type: "text/calendar" })); } catch (e) {}
+    $("[data-when]").innerHTML = `For <b>${slotText(s)}</b> <span class="muted">(${TZ.replace(/_/g, " ")})</span>`;
+    $("[data-mail]").textContent = `A calendar invite is on its way to ${email.value.trim()}.`;
+    try { $("[data-ics]").href = URL.createObjectURL(new Blob([ics(s)], { type: "text/calendar" })); } catch (e) {}
     draft.clear();
-    goStep(3);
+    prefillDetails();
+    state.step = 2;   // Enter in the optional details must never re-book
+    const from = panels[0], to = panels[1];
+    from.hidden = true; to.hidden = false;
+    if (!reduced.matches) to.classList.add("enter-forward");
+    const title = to.querySelector(".step-title");
+    title.focus({ preventScroll: true });
+    const top = form.getBoundingClientRect().top;
+    if (top < 70) form.scrollIntoView({ block: "start", behavior: reduced.matches ? "auto" : "smooth" });
     announce(`You're booked for ${slotText(s)}.`);
   }
 
-  /* ---------- wiring ---------- */
-  $("#tz-line").textContent = `15 minutes, on video. Times in ${TZ.replace(/_/g, " ")}.`;
-
-  form.addEventListener("submit", (e) => {
-    e.preventDefault();
-    if (state.step === 1) {
-      const order = ["email", "site", "revenue"];
-      const bad = order.filter((n) => !check(n));
-      order.forEach((n) => (fields[n].dataset.touched = "1"));
-      if (bad.length) { focusField(bad[0]); return; }
-      goStep(2); loadSlots();
-    } else if (state.step === 2) confirm();
+  /* ---------- optional details, asked after the booking ---------- */
+  const FREE_MAIL = /^(gmail|googlemail|yahoo|ymail|hotmail|outlook|live|msn|icloud|me|mac|aol|proton|protonmail|pm|gmx|mail|yandex|zoho|free|orange|laposte|sfr|wanadoo|hey)\./i;
+  const PLAN_BAND = { starter: "Under $1M", growth: "$1–10M", business: "$10M+" };
+  function prefillDetails() {
+    const site = $("#f-site");
+    const domain = (email.value.trim().split("@")[1] || "").toLowerCase();
+    if (site && domain && !FREE_MAIL.test(domain) && !site.value) { site.value = domain; site.dataset.autofilled = "1"; }
+    const plan = (new URLSearchParams(location.search).get("plan") || "").toLowerCase();
+    if (PLAN_BAND[plan]) form.querySelectorAll('input[name="revenue"]').forEach((r) => { r.checked = r.value === PLAN_BAND[plan]; });
+  }
+  const detailsBtn = $("[data-action='details']");
+  if (detailsBtn) detailsBtn.addEventListener("click", () => {
+    const box = $("[data-details]");
+    box.innerHTML = `<p class="details-done">✓ Thanks. We'll look at your store before the call.</p>`;
+    announce("Thanks. Details saved.");
   });
-  backBtn.addEventListener("click", () => { if (!state.busy) goStep(1, "back"); });
 
-  // restore a draft after a refresh — nothing typed is ever lost
+  /* ---------- wiring ---------- */
+  const tz = $("[data-tz]");
+  if (tz) tz.textContent = `Free, 15 minutes on video. Times in ${TZ.replace(/_/g, " ")}.`;
+  form.querySelectorAll("[data-contact]").forEach((a) => { a.href = "mailto:" + CONTACT.email; });
+
+  form.addEventListener("submit", (e) => { e.preventDefault(); if (state.step === 1) confirm(); });
+
   const d = draft.load();
-  ["email", "site", "spend"].forEach((k) => { if (d[k]) fields[k].value = d[k]; });
-  if (d.revenue) setRevenue(d.revenue);
-  else if (PLAN_BAND[plan]) setRevenue(PLAN_BAND[plan]);
+  if (d.email) email.value = d.email;
+  loadSlots();
 })();

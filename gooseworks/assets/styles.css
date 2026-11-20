@@ -612,3 +612,59 @@ a.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-1); }
   .footer-grid { gap: var(--s-5) var(--s-4); }
   .footer-bottom { margin-top: var(--s-6); padding-top: var(--s-5); gap: var(--s-3); }
 }
+
+/* =====================================================================
+   v8 — "At a glance": what it is, key facts and a 2-click booking in the hero
+   ===================================================================== */
+.hero-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); grid-template-areas: "intro book" "steps book" "facts book";
+  column-gap: var(--s-8); row-gap: var(--s-5); align-items: start; text-align: left; }
+.hero-intro { grid-area: intro; display: grid; justify-items: start; gap: var(--s-3); }
+.hero-grid .how-steps { grid-area: steps; }
+.hero-grid .key-facts { grid-area: facts; }
+.hero-grid .hero-book { grid-area: book; }
+.hero-for { color: var(--accent-ink); }
+.hero .hero-intro h1 { margin: 0; max-width: 17ch; font-size: clamp(38px, 4.4vw, 54px); }
+.hero .hero-intro .lead { margin: 0; max-width: 34em; }
+
+.how-steps { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); font-size: var(--fs-sm); color: var(--ink-2); }
+.how-steps li { display: inline-flex; align-items: center; gap: var(--s-2); }
+.how-steps b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--ink); color: #fff; font: 600 var(--fs-xs)/1 var(--sans); }
+
+.key-facts { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
+.key-facts a { display: grid; gap: 2px; height: 100%; padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--r-sm); background: var(--surface); color: var(--ink); text-decoration: none; transition: border-color .15s ease-out; }
+.key-facts a:hover { border-color: var(--ink); }
+.key-facts a:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.key-facts b { font: 400 var(--fs-xl)/1.15 var(--serif); font-variant-numeric: tabular-nums; }
+.key-facts span { font-size: var(--fs-sm); color: var(--ink-2); }
+
+.hero-book { padding: var(--s-5); gap: 0; }
+.hero-book .step-title { margin-bottom: var(--s-1); }
+.hero-book .step-sub { margin-bottom: var(--s-3); font-size: var(--fs-sm); }
+.book-confirm { display: grid; gap: var(--s-3); margin-top: var(--s-4); }
+.book-confirm.in { animation: step-forward .2s ease-out; }
+.book-alt { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--s-4); margin-top: var(--s-2); font-size: var(--fs-sm); }
+.book-alt .text-link { font-weight: 500; }
+.details { display: grid; gap: var(--s-3); }
+.details .fields { gap: var(--s-3); }
+.details-done { font-weight: 600; color: var(--ink); }
+.hero .stack-row { margin-top: var(--s-7); }
+
+@media (max-width: 960px) {
+  .hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "intro" "facts" "book" "steps"; row-gap: var(--s-4); }
+  .hero .hero-intro h1 { max-width: none; font-size: clamp(34px, 8vw, 48px); }
+  .hero .stack-row { margin-top: var(--s-5); }
+}
+@media (max-width: 760px) {
+  .hero-grid .how-steps { display: none; }   /* the lead already says it; keeps the slots near the first screen */
+  .hero { padding-top: var(--s-5); }
+  .hero-grid { row-gap: var(--s-3); }
+}
+@media (max-width: 420px) {
+  .key-facts a { padding: var(--s-2) var(--s-3); }
+  .key-facts b { font-size: var(--fs-lg); }
+  .key-facts span { font-size: var(--fs-xs); }
+  .hero-book { padding: var(--s-4); }
+  .hero-book .slots { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hero-book .slot { padding: var(--s-2); }
+}
+@media (prefers-reduced-motion: reduce) { .book-confirm.in { animation: none; } .key-facts a { transition: none; } }
