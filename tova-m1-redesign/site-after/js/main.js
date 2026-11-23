@@ -225,14 +225,15 @@ function track(name, props) {
   }
 })();
 
-// ---------- Header turns solid on scroll ----------
-function updateHeader() {
-  var h = document.querySelector('.header');
-  // reads layout on every scroll event
-  h.classList.toggle('is-scrolled', document.documentElement.scrollTop > document.querySelector('.hero').offsetHeight - 80);
-}
-window.addEventListener('scroll', updateHeader);
-updateHeader();
+// ---------- Header turns solid once the hero is out of view (no layout reads on scroll) ----------
+(function () {
+  var header = document.querySelector('.header');
+  var hero = document.querySelector('.hero');
+  if (!('IntersectionObserver' in window)) { header.classList.add('is-scrolled'); return; }
+  new IntersectionObserver(function (entries) {
+    header.classList.toggle('is-scrolled', !entries[0].isIntersecting);
+  }, { rootMargin: '-80px 0px 0px 0px' }).observe(hero);
+})();
 
 // ---------- Accordion (shadcn pattern; several items can be open; closed panels are inert) ----------
 document.querySelectorAll('.accordion__trigger').forEach(function (btn) {
@@ -245,20 +246,13 @@ document.querySelectorAll('.accordion__trigger').forEach(function (btn) {
   });
 });
 
-// ---------- Tooltip (opens on hover and focus, stays while hovered, Escape closes) ----------
-document.querySelectorAll('.tooltip-wrap').forEach(function (wrap) {
-  var tip = wrap.querySelector('.tooltip');
-  var trigger = wrap.querySelector('button');
-  function set(open) { tip.dataset.state = open ? 'open' : 'closed'; }
-  wrap.addEventListener('pointerenter', function () { set(true); });
-  wrap.addEventListener('pointerleave', function () { if (document.activeElement !== trigger) set(false); });
-  trigger.addEventListener('focus', function () { set(true); });
-  trigger.addEventListener('blur', function () { set(false); });
-  trigger.addEventListener('click', function () { set(tip.dataset.state !== 'open'); });   // touch
-  wrap.addEventListener('keydown', function (e) { if (e.key === 'Escape') set(false); });
-});
+// ---------- Small storage helpers (storage can be blocked: the page works without it) ----------
+function store(key, value) { try { localStorage.setItem(key, value); } catch (e) {} }
+function recall(key) { try { return localStorage.getItem(key); } catch (e) { return null; } }
 
-// ---------- Order form ----------
+// ---------- Waitlist: one quick form in the hero, the full one in the order band ----------
+// Both share the same logic. Success shows in place (no dialog to close),
+// and every "Join" button then says you're on the list.
 function setError(input, text) {
   var err = document.getElementById(input.id + '-error').querySelector('span');
   err.textContent = text;
@@ -266,93 +260,94 @@ function setError(input, text) {
   else input.removeAttribute('aria-invalid');
 }
 
-document.getElementById('orderForm').addEventListener('submit', function (e) {
-  e.preventDefault();
-  var email = document.getElementById('email');
-  var zip = document.getElementById('zip');
-  var btn = document.getElementById('joinBtn');
-  if (btn.disabled) return;
+var joinForms = Array.prototype.slice.call(document.querySelectorAll('[data-join-form]'));
 
-  setError(email, '');
-  setError(zip, '');
-  document.getElementById('formMsg').textContent = '';
+function showJoined(email) {
+  joinForms.forEach(function (form) {
+    var done = form.parentNode.querySelector('.join-done');
+    var to = email ? 'We\'ve sent a confirmation to <strong></strong>.' : 'We\'ll email you when it\'s your turn.';
+    done.innerHTML =
+      '<p class="join-done__title"><span class="included__check" aria-hidden="true"><svg class="icon"><use href="#i-check"/></svg></span>You\'re on the list</p>' +
+      '<p class="join-done__text">' + to + ' Deliveries start in Q1 2027, at the launch price of $1,690. Nothing to pay now.</p>';
+    if (email) done.querySelector('strong').textContent = email;
+    form.hidden = true;
+    done.hidden = false;
+  });
+  document.querySelectorAll('[data-join]').forEach(function (a) {
+    a.classList.add('is-joined');
+    a.innerHTML = '<svg class="icon" aria-hidden="true"><use href="#i-check"/></svg> On the list';
+  });
+}
 
-  var firstInvalid = null;
-  if (!/^\S+@\S+\.\S+$/.test(email.value)) {
-    setError(email, 'Enter an email address, like name@example.com.');
-    firstInvalid = email;
-  }
-  if (!/^\d{5}$/.test(zip.value)) {
-    setError(zip, 'Enter a 5-digit US ZIP code.');
-    firstInvalid = firstInvalid || zip;
-  }
-  if (firstInvalid) {
-    var count = (email.hasAttribute('aria-invalid') ? 1 : 0) + (zip.hasAttribute('aria-invalid') ? 1 : 0);
-    document.getElementById('formMsg').textContent = count === 2 ? 'Please fix the 2 fields above.' : 'Please fix the field above.';
-    firstInvalid.focus();
-    return;
-  }
+joinForms.forEach(function (form) {
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var email = form.querySelector('[type=email]');
+    var zip = form.querySelector('[name=zip]');
+    var btn = form.querySelector('[type=submit]');
+    var msg = form.querySelector('.form-msg');
+    if (btn.disabled) return;
 
-  // loading state: one request at a time
-  var label = btn.innerHTML;
-  btn.disabled = true;
-  btn.classList.add('is-loading');
-  btn.setAttribute('aria-busy', 'true');
-  btn.innerHTML = '<svg class="icon icon--spin" aria-hidden="true"><use href="#i-loader-circle"/></svg> Joining…';
+    setError(email, '');
+    if (zip) setError(zip, '');
+    if (msg) msg.textContent = '';
 
-  // fake network call
-  setTimeout(function () {
-    btn.disabled = false;
-    btn.classList.remove('is-loading');
-    btn.removeAttribute('aria-busy');
-    btn.innerHTML = label;
-    openModal('thanks', email.value);
-    track('waitlist_join', { robot_used: !!window.tovaRobotUsed, robot_variant: window.tovaRobotVariant || 'none' });
-  }, 1800);
+    var invalid = [];
+    if (!/^\S+@\S+\.\S+$/.test(email.value.trim())) {
+      setError(email, 'Enter an email address, like name@example.com.');
+      invalid.push(email);
+    }
+    if (zip && zip.value.trim() && !/^\d{5}$/.test(zip.value.trim())) {
+      setError(zip, 'Enter a 5-digit US ZIP code, or leave it empty.');
+      invalid.push(zip);
+    }
+    if (invalid.length) {
+      if (msg) msg.textContent = invalid.length === 2 ? 'Please fix the 2 fields above.' : 'Please fix the field above.';
+      invalid[0].focus();
+      return;
+    }
+
+    // loading state: one request at a time, kept short so the page stays responsive
+    var label = btn.innerHTML;
+    btn.disabled = true;
+    btn.classList.add('is-loading');
+    btn.setAttribute('aria-busy', 'true');
+    btn.innerHTML = '<svg class="icon icon--spin" aria-hidden="true"><use href="#i-loader-circle"/></svg> Joining…';
+
+    setTimeout(function () {   // fake network call
+      btn.disabled = false;
+      btn.classList.remove('is-loading');
+      btn.removeAttribute('aria-busy');
+      btn.innerHTML = label;
+      store('tova_joined', '1');   // remember the state only, never the email
+      showJoined(email.value.trim());
+      track('waitlist_join', { form: form.id, robot_used: !!window.tovaRobotUsed, robot_variant: window.tovaRobotVariant || 'none' });
+    }, 700);
+  });
 });
 
-// Every "Join the waitlist" link scrolls to the form and puts the cursor in the email field
+if (recall('tova_joined') === '1') showJoined('');
+
+// "Join" buttons: before joining, go to the form with the cursor in the email field
 document.querySelectorAll('[data-join]').forEach(function (a) {
   a.addEventListener('click', function () {
+    if (a.classList.contains('is-joined')) return;
     setTimeout(function () { document.getElementById('email').focus({ preventScroll: true }); }, reduceMotion ? 0 : 500);
   });
 });
 
-// ---------- Modal (native <dialog>: focus trap, Escape and focus return are built in) ----------
-function openModal(kind, email) {
-  var body = document.getElementById('modalBody');
-  var arrow = ' <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg>';
-  if (kind === 'cart') {
-    body.innerHTML = '<div class="dialog__header"><h2 class="dialog__title" id="modalTitle">Your cart</h2>' +
-      '<p class="dialog__description">Nothing in your cart. Tova M1 is available to join the waitlist.</p></div>' +
-      '<div class="dialog__footer"><a class="btn btn--default" href="#order" data-modal-join>Join the waitlist' + arrow + '</a></div>';
-  } else {
-    body.innerHTML = '<div class="dialog__header"><h2 class="dialog__title" id="modalTitle">You\'re on the list</h2>' +
-      '<p class="dialog__description">We\'ve sent a confirmation to <strong></strong>.</p></div>' +
-      '<ul class="dialog__list">' +
-      '<li>You\'ll be among the first to order, at the launch price of $1,690.</li>' +
-      '<li>We\'ll email you when it\'s your turn. Deliveries start in Q1 2027.</li>' +
-      '<li>Nothing to pay now. You can leave the list anytime.</li></ul>' +
-      '<div class="dialog__footer"><button class="btn btn--default" type="button" onclick="closeModal()">Done</button></div>';
-    body.querySelector('strong').textContent = email;
-  }
-  var join = body.querySelector('[data-modal-join]');
-  if (join) join.addEventListener('click', function () {
-    closeModal();
-    setTimeout(function () { document.getElementById('email').focus({ preventScroll: true }); }, reduceMotion ? 0 : 500);
+// ---------- Cookie banner: answer once, remembered on the next visits ----------
+(function () {
+  var banner = document.getElementById('cookie');
+  if (!banner) return;
+  if (recall('tova_consent')) { banner.remove(); return; }
+  banner.querySelectorAll('[data-consent]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      store('tova_consent', b.dataset.consent);
+      banner.remove();
+    });
   });
-  var dlg = document.getElementById('modal');
-  if (!dlg.open) dlg.showModal();
-}
-function closeModal() {
-  document.getElementById('modal').close();
-}
-// Click on the backdrop closes it too
-document.getElementById('modal').addEventListener('click', function (e) {
-  var r = this.getBoundingClientRect();
-  var outside = e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
-  if (e.target === this && outside) closeModal();
-});
+})();
 
 // ---------- Scroll reveal: section headings and their content rise in once ----------
 (function () {
@@ -383,11 +378,12 @@ document.getElementById('modal').addEventListener('click', function (e) {
   var form = document.getElementById('orderForm');
   var email = document.getElementById('email');
   var zip = document.getElementById('zip');
+  var hero = document.getElementById('heroForm');
   var states = [
-    ['Form: errors', function () { email.value = ''; zip.value = ''; form.requestSubmit(); }],
+    ['Form: errors', function () { email.value = ''; zip.value = '12'; form.requestSubmit(); }],
     ['Form: loading', function () { email.value = 'name@example.com'; zip.value = '94107'; form.requestSubmit(); }],
-    ['Dialog: success', function () { openModal('thanks', 'name@example.com'); }],
-    ['Dialog: empty cart', function () { openModal('cart'); }],
+    ['Hero form: error', function () { document.getElementById('heroEmail').value = 'name@'; hero.requestSubmit(); }],
+    ['Reset joined state', function () { try { localStorage.removeItem('tova_joined'); localStorage.removeItem('tova_consent'); } catch (e) {} location.reload(); }],
     ['Robot: privacy on/off', function () { document.getElementById('robot').click(); }]
   ];
   states.forEach(function (s) {
@@ -425,13 +421,27 @@ document.getElementById('modal').addEventListener('click', function (e) {
       : shown === 0 ? 'No skills match'
       : shown + (shown === 1 ? ' skill matches' : ' skills match') + ' “' + q.value.trim() + '”';
   }
+  // Quick filters: one click instead of typing. The active chip mirrors the search field.
+  var chips = Array.prototype.slice.call(document.querySelectorAll('.skills-chips .chip'));
+  function syncChips() {
+    var v = norm(q.value.trim());
+    chips.forEach(function (c) { c.setAttribute('aria-pressed', String(c.dataset.q === v)); });
+  }
+  chips.forEach(function (c) {
+    c.addEventListener('click', function () {
+      q.value = c.getAttribute('aria-pressed') === 'true' ? '' : c.dataset.q;
+      filter(); syncChips();
+      track('skills_chip', { chip: c.dataset.q });
+    });
+  });
   q.addEventListener('input', function () {
     clearTimeout(debounce);
+    syncChips();
     debounce = setTimeout(function () {
       filter();
       if (q.value.trim()) track('skills_search', { results: cards.filter(function (c) { return !c.hidden; }).length });
     }, 150);
   });
-  document.getElementById('skillsClear').addEventListener('click', function () { q.value = ''; filter(); q.focus(); });
+  document.getElementById('skillsClear').addEventListener('click', function () { q.value = ''; filter(); syncChips(); q.focus(); });
   filter();
 })();

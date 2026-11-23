@@ -760,3 +760,64 @@ section:not(.hero):not(.press) > .section-label::after {
   .peace { grid-template-columns: 1fr; }
   .hero h1 { font-size: 48px; }
 }
+
+/* ---------- Fewer clicks: quick join, inline confirmation, filter chips, inline spec details ---------- */
+.quick-join {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  max-width: 520px;
+  padding: 8px;
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+}
+.quick-join .input { height: 48px; }
+.quick-join .field__error, .quick-join__fine { grid-column: 1 / -1; margin: 0 4px; }
+.quick-join__fine { font-size: 12px; color: var(--muted-foreground); }
+.quick-join .field__error:not(:has(span:empty)) + .quick-join__fine { display: none; }
+
+.join-done {
+  max-width: 520px;
+  padding: 16px 18px;
+  background: var(--card);
+  color: var(--card-foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+}
+.join-done__title { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 18px; }
+.join-done__text { margin-top: 6px; font-size: 14px; color: var(--muted-foreground); }
+.join-done--order { align-self: start; }
+.join-done:not([hidden]) { animation: rise 400ms cubic-bezier(.2, .7, .2, 1) both; }
+.btn.is-joined { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); }
+
+.label__optional { font-weight: 400; color: var(--muted-foreground); }
+
+.skills-chips { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  min-height: 32px;
+  padding: 4px 14px;
+  font: 700 13px/1 var(--font-body);
+  color: var(--foreground);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background-color 150ms, color 150ms, border-color 150ms;
+}
+.chip:hover { border-color: var(--foreground); }
+.chip:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.chip[aria-pressed="true"] { background: var(--foreground); color: var(--background); border-color: var(--foreground); }
+
+.spec__detail { padding: 0 24px 20px; margin-top: -8px; font-size: 13px; color: var(--muted-foreground); }
+
+@media (max-width: 640px) {
+  .quick-join { grid-template-columns: 1fr; }
+  .quick-join .btn { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .join-done:not([hidden]) { animation: none; }
+  .chip { transition: none; }
+}

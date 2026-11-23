@@ -47,7 +47,7 @@
 
 <!-- ===================== HEADER ===================== -->
 <header class="header">
-  <a class="logo" href="index.html" aria-label="Tova M1 home">
+  <a class="logo" href="#" aria-label="Tova M1, back to top">
     <span class="logo__mark" aria-hidden="true"></span> tova <span class="logo__tag badge badge--default">M1</span>
   </a>
   <nav class="nav" aria-label="Main">
@@ -55,10 +55,6 @@
     <a class="btn btn--ghost btn--sm nav__link" href="#skills">Skills</a>
     <a class="btn btn--ghost btn--sm nav__link" href="#specs">Specs</a>
     <a class="btn btn--ghost btn--sm nav__link" href="#faq">FAQ</a>
-    <button class="btn btn--ghost btn--icon" type="button" aria-label="Cart" onclick="openModal('cart')">
-      <svg class="icon icon--lg" aria-hidden="true"><use href="#i-shopping-cart"/></svg>
-    </button>
-    <a class="btn btn--outline nav__help" href="#faq">Help</a>
     <a class="btn btn--default" href="#order" data-join>Join<span class="hide-sm"> the waitlist</span> <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
   </nav>
 </header>
@@ -75,7 +71,16 @@
     </div>
     <h1 id="hero-title">Tova M1</h1>
     <p class="hero__sub">Tidies up, loads the dishwasher and folds laundry. $1,690.</p>
-    <a class="btn btn--default btn--lg hero__cta" href="#order" data-join>Join the waitlist <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></a>
+    <div class="hero__cta">
+      <form class="quick-join" id="heroForm" novalidate data-join-form>
+        <label class="visually-hidden" for="heroEmail">Email</label>
+        <input class="input" id="heroEmail" name="email" type="email" autocomplete="email" placeholder="Your email" aria-describedby="heroEmail-error heroEmail-fine">
+        <button class="btn btn--default btn--lg" type="submit">Join the waitlist <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
+        <p class="field__error" id="heroEmail-error"><svg class="icon" aria-hidden="true"><use href="#i-circle-alert"/></svg><span></span></p>
+        <p class="quick-join__fine" id="heroEmail-fine">Free. No payment now. Leave anytime.</p>
+      </form>
+      <div class="join-done" role="status" hidden></div>
+    </div>
   </div>
 
   <!-- Interactive robot V2: see reports/07-interaction-design.md and reports/08-expert-panel.md -->
@@ -264,6 +269,13 @@
       <input class="input" id="skillsQuery" type="search" placeholder="Try “laundry”, “kitchen” or “free”" autocomplete="off" aria-describedby="skillsCount">
     </div>
     <p class="skills-search__count" id="skillsCount" aria-live="polite">8 skills</p>
+    <div class="skills-chips" role="group" aria-label="Quick filters">
+      <button class="chip" type="button" aria-pressed="false" data-q="kitchen">Kitchen</button>
+      <button class="chip" type="button" aria-pressed="false" data-q="laundry">Laundry</button>
+      <button class="chip" type="button" aria-pressed="false" data-q="tidy">Tidying</button>
+      <button class="chip" type="button" aria-pressed="false" data-q="pets">Pets</button>
+      <button class="chip" type="button" aria-pressed="false" data-q="free">Free</button>
+    </div>
   </div>
   <ul class="skills" id="skillsList">
     <li class="card skill" data-tags="kitchen cooking food morning">
@@ -369,22 +381,16 @@
     <div class="card">
       <div class="card__header">
         <h3 class="card__description">Arms</h3>
-        <div class="card__action tooltip-wrap">
-          <button class="btn btn--ghost btn--icon" type="button" aria-label="More about the arms" aria-describedby="tip-arms"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button>
-          <div class="tooltip" role="tooltip" id="tip-arms">7 joints per arm, plus a gripper that opens and closes.</div>
-        </div>
       </div>
       <p class="card__content spec__value">Two 7-joint arms with grippers. Each lifts up to 1.5 kg (3.3 lb).</p>
+      <p class="spec__detail">7 joints per arm, plus a gripper that opens and closes.</p>
     </div>
     <div class="card">
       <div class="card__header">
         <h3 class="card__description">Lidar</h3>
-        <div class="card__action tooltip-wrap">
-          <button class="btn btn--ghost btn--icon" type="button" aria-label="More about the lidar" aria-describedby="tip-lidar"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button>
-          <div class="tooltip" role="tooltip" id="tip-lidar">Scans its surroundings 10 times a second.</div>
-        </div>
       </div>
       <p class="card__content spec__value">Maps rooms up to 12 m (40 ft) across, so it never bumps into furniture.</p>
+      <p class="spec__detail">Scans its surroundings 10 times a second.</p>
     </div>
     <div class="card">
       <div class="card__header"><h3 class="card__description">Cameras</h3></div>
@@ -397,12 +403,9 @@
     <div class="card">
       <div class="card__header">
         <h3 class="card__description">Battery</h3>
-        <div class="card__action tooltip-wrap">
-          <button class="btn btn--ghost btn--icon" type="button" aria-label="More about the battery" aria-describedby="tip-battery"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg></button>
-          <div class="tooltip" role="tooltip" id="tip-battery">Based on typical mixed use, charging on the dock.</div>
-        </div>
       </div>
       <p class="card__content spec__value">6–8 hours per charge. Back to full in 2.5 hours.</p>
+      <p class="spec__detail">Based on typical mixed use, charging on the dock.</p>
     </div>
     <div class="card spec--wide theme-dark">
       <div class="card__header"><h3 class="card__description">Assembly</h3></div>
@@ -497,20 +500,20 @@
       <div class="accordion__content" id="faq-a1" role="region" aria-labelledby="faq-q1" data-state="open"><div class="accordion__inner"><p>Orders open to the waitlist first, in the order people joined. Deliveries start in Q1 2027, and we'll email you when it's your turn to order.</p></div></div>
     </div>
     <div class="accordion__item">
-      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="false" aria-controls="faq-a2" id="faq-q2">Is it safe around kids and pets? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
-      <div class="accordion__content" id="faq-a2" role="region" aria-labelledby="faq-q2" data-state="closed" inert><div class="accordion__inner"><p>Yes. Its arms stop on contact and it moves slower than walking pace. <a href="#safety">See how Tova keeps your home safe and private</a>.</p></div></div>
+      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="true" aria-controls="faq-a2" id="faq-q2">Is it safe around kids and pets? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
+      <div class="accordion__content" id="faq-a2" role="region" aria-labelledby="faq-q2" data-state="open"><div class="accordion__inner"><p>Yes. Its arms stop on contact and it moves slower than walking pace. <a href="#safety">See how Tova keeps your home safe and private</a>.</p></div></div>
     </div>
     <div class="accordion__item">
-      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="false" aria-controls="faq-a3" id="faq-q3">Does Tova need the internet? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
-      <div class="accordion__content" id="faq-a3" role="region" aria-labelledby="faq-q3" data-state="closed" inert><div class="accordion__inner"><p>Not for everyday use. Getting around your home and the 6 built-in tasks work offline. You'll need internet and a free account for the app and new skills.</p></div></div>
+      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="true" aria-controls="faq-a3" id="faq-q3">Does Tova need the internet? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
+      <div class="accordion__content" id="faq-a3" role="region" aria-labelledby="faq-q3" data-state="open"><div class="accordion__inner"><p>Not for everyday use. Getting around your home and the 6 built-in tasks work offline. You'll need internet and a free account for the app and new skills.</p></div></div>
     </div>
     <div class="accordion__item">
-      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="false" aria-controls="faq-a4" id="faq-q4">Will the price go up? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
-      <div class="accordion__content" id="faq-a4" role="region" aria-labelledby="faq-q4" data-state="closed" inert><div class="accordion__inner"><p>Everyone on the waitlist can order at the launch price of $1,690. After launch, M1 will retail at $1,749.</p></div></div>
+      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="true" aria-controls="faq-a4" id="faq-q4">Will the price go up? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
+      <div class="accordion__content" id="faq-a4" role="region" aria-labelledby="faq-q4" data-state="open"><div class="accordion__inner"><p>Everyone on the waitlist can order at the launch price of $1,690. After launch, M1 will retail at $1,749.</p></div></div>
     </div>
     <div class="accordion__item">
-      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="false" aria-controls="faq-a5" id="faq-q5">Can I leave the waitlist? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
-      <div class="accordion__content" id="faq-a5" role="region" aria-labelledby="faq-q5" data-state="closed" inert><div class="accordion__inner"><p>Yes, anytime, with one click from any of our emails. And if you order later, you can still send your Tova back within 30 days of delivery for a full refund.</p></div></div>
+      <h3 class="accordion__heading"><button class="accordion__trigger" type="button" aria-expanded="true" aria-controls="faq-a5" id="faq-q5">Can I leave the waitlist? <svg class="icon" aria-hidden="true"><use href="#i-chevron-down"/></svg></button></h3>
+      <div class="accordion__content" id="faq-a5" role="region" aria-labelledby="faq-q5" data-state="open"><div class="accordion__inner"><p>Yes, anytime, with one click from any of our emails. And if you order later, you can still send your Tova back within 30 days of delivery for a full refund.</p></div></div>
     </div>
   </div>
 </section>
@@ -533,7 +536,7 @@
     <p class="included__note">Optional: extra skills from the marketplace. Many are free, some creators charge a small fee. You never need a paid skill for the tasks above.</p>
   </div>
   <div>
-    <form id="orderForm" novalidate>
+    <form id="orderForm" novalidate data-join-form>
       <div class="field">
         <label class="label" for="email">Email</label>
         <p class="field__description" id="email-hint">We'll only email you about your waitlist spot.</p>
@@ -541,8 +544,8 @@
         <p class="field__error" id="email-error"><svg class="icon" aria-hidden="true"><use href="#i-circle-alert"/></svg><span></span></p>
       </div>
       <div class="field">
-        <label class="label" for="zip">ZIP code</label>
-        <p class="field__description" id="zip-hint">5-digit US ZIP code. We only ship in the US for now.</p>
+        <label class="label" for="zip">ZIP code <span class="label__optional">(optional)</span></label>
+        <p class="field__description" id="zip-hint">We only ship in the US for now. Add it to hear when we deliver near you.</p>
         <input class="input" id="zip" name="zip" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="5" aria-describedby="zip-hint zip-error">
         <p class="field__error" id="zip-error"><svg class="icon" aria-hidden="true"><use href="#i-circle-alert"/></svg><span></span></p>
       </div>
@@ -554,6 +557,7 @@
       <button class="btn btn--default btn--lg order__submit" id="joinBtn" type="submit">Join the waitlist <svg class="icon" aria-hidden="true"><use href="#i-arrow-right"/></svg></button>
       <p class="order__fine">Free to join. No payment now. Leave anytime.</p>
     </form>
+    <div class="join-done join-done--order" role="status" hidden></div>
   </div>
 
   <ul class="peace" aria-label="Peace of mind">
@@ -595,17 +599,11 @@
     <p>We use essential cookies to run this site. With your OK, we'll also use cookies to measure visits and improve our ads.</p>
   </div>
   <div class="card__footer">
-    <a class="btn btn--link cookie__settings" href="#">Cookie settings</a>
-    <button class="btn btn--outline btn--sm" type="button" onclick="document.getElementById('cookie').remove()">Essential only</button>
-    <button class="btn btn--outline btn--sm" type="button" onclick="document.getElementById('cookie').remove()">Accept all</button>
+    <button class="btn btn--outline btn--sm" type="button" data-consent="essential">Essential only</button>
+    <button class="btn btn--outline btn--sm" type="button" data-consent="all">Accept all</button>
   </div>
 </div>
 
-<!-- Dialog -->
-<dialog class="dialog" id="modal" aria-labelledby="modalTitle">
-  <button class="dialog__close" type="button" aria-label="Close" onclick="closeModal()"><svg class="icon" aria-hidden="true"><use href="#i-x"/></svg></button>
-  <div class="dialog__body" id="modalBody"></div>
-</dialog>
 
 <script src="js/scenes.js"></script>
 <script src="js/main.js"></script>

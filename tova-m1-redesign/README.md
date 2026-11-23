@@ -135,9 +135,38 @@ Full pages, top to bottom, with no annotations.
 
 ---
 
-## 4. Where it stands
+## 4. Fewer clicks
 
-- **Works:** one design system (tokens, shadcn/ui components, Lucide icons), WCAG AA contrast and keyboard support, an interactive hero robot, six task animations with Pause, a searchable skills marketplace and a free waitlist form with errors, loading and confirmation.
+A later pass, after the report: list every path through the page, count the clicks, and cut them. The report and the before/after screenshots above show the page before this pass.
+
+| Path | Before | After | What changed |
+|---|---|---|---|
+| **Join the waitlist** (main goal) | 4 clicks + scroll to the bottom | **2 clicks**, no scroll | Email field directly in the hero. ZIP is optional and only in the bottom form. The confirmation shows in place, with no dialog to close. |
+| Come back after joining | Every button still says "Join" | **0** | The page remembers you joined, and the buttons say "On the list". |
+| Cookie banner | 1 click on every visit | 1 click, once | The choice is remembered. The dead "Cookie settings" link is gone. |
+| Cart | 2 clicks to an empty cart | **Removed** | Nothing can be bought yet, so it was a dead end. |
+| "Help" and "FAQ" | 2 buttons, same target | **1** | "Help" removed. |
+| Read an FAQ answer | 2 clicks | **1** | All answers open by default. |
+| Spec details | Hover or click on an ⓘ | **0** | The detail sits under each spec. |
+| Filter skills | Click + type | **1 click** | Quick filters: Kitchen, Laundry, Tidying, Pets, Free. |
+
+Code changes in the same pass:
+- The header no longer measures the page on every scroll event. An `IntersectionObserver` tells it when the hero leaves the screen.
+- No more dialogs: about 40 lines of code removed.
+- The fake loading time after "Join" went from 1.8 s to 0.7 s.
+- The page only stores "joined: yes" and the cookie choice, never the email address.
+
+Trade-off: the ZIP code is no longer required, so fewer people will give it, but nobody is blocked on the main path. It can be asked for in the confirmation email.
+
+| Quick join in the hero | One-click skill filters |
+|---|---|
+| ![Hero with the email field and Join button](screenshots/fewer-clicks/hero-quick-join.png) | ![Skills filtered with the Free chip](screenshots/fewer-clicks/skills-quick-filters.png) |
+
+---
+
+## 5. Where it stands
+
+- **Works:** one design system (tokens, shadcn/ui components, Lucide icons), WCAG AA contrast and keyboard support, an interactive hero robot, six task animations with Pause, a searchable skills marketplace with quick filters, and a 2-click waitlist with errors, loading and an inline confirmation.
 - **Still to do:** in the skill cards the "· installs" part can wrap onto its own line; the four extra skills are made up for the search demo; dark mode is planned but not built.
 - The waitlist form is a demo: nothing is sent or saved.
 
