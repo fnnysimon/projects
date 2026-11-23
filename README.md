@@ -3,7 +3,6 @@ all projects I involved
 
 ## Projects
 
-- [Tolerance — disposition workbench](mro-workbench/): a concept interface for agentic AI in aircraft maintenance. Engineers review AI-drafted dispositions with cited sources, a measured-vs-limit gauge, tracked edits and press-and-hold sign-off. Next.js, Tailwind, TypeScript, Motion. Unaffiliated exercise
 
 - [Tova M1 redesign](tova-m1-redesign/): a deliberately broken robot landing page, inspired by of [Nori.A3](https://www.norirobotics.com/), fixed step by step with Claude skills. Includes a before/after report and screenshots. Unaffiliated exercise
 - [Nimbus](nimbus/): a landing page with a design system broken on purpose, improved step by step with Claude skills. Includes a 41-page before/after report with annotated screenshots, made with the `/doc` skill. Unaffiliated exercise
