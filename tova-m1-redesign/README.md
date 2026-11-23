@@ -62,7 +62,8 @@ What Tova borrows from it:
 | 10 | Request, no skill | Robot redrawn to match a product render, keeping every effect. |
 | 11 | `/frontend-design` | "Product spec sheet" art direction: paper grain, blueprint grid, numbered sections, motion. |
 | 12 | Request, no skill | Skill search instead of a dead button, and six animated task scenes. |
-| 13 | `/doc` | The before/after report in [`report/`](report/). |
+| 13 | Request, no skill | Fewer clicks on every path: join from the hero in 2 clicks instead of 4 (section 4 below). |
+| 14 | `/doc` | The before/after report in [`report/`](report/), including the fewer-clicks pass. |
 
 ---
 
@@ -137,30 +138,46 @@ Full pages, top to bottom, with no annotations.
 
 ## 4. Fewer clicks
 
-A later pass, after the report: list every path through the page, count the clicks, and cut them. The report and the before/after screenshots above show the page before this pass.
+A later pass: list every path through the page, count the clicks, and cut them. It is also section 07 of the [report](report/). "Before" below is the page at the end of section 3. Red boxes mark what changed, and the numbers match the list.
 
-| Path | Before | After | What changed |
-|---|---|---|---|
-| **Join the waitlist** (main goal) | 4 clicks + scroll to the bottom | **2 clicks**, no scroll | Email field directly in the hero. ZIP is optional and only in the bottom form. The confirmation shows in place, with no dialog to close. |
-| Come back after joining | Every button still says "Join" | **0** | The page remembers you joined, and the buttons say "On the list". |
-| Cookie banner | 1 click on every visit | 1 click, once | The choice is remembered. The dead "Cookie settings" link is gone. |
-| Cart | 2 clicks to an empty cart | **Removed** | Nothing can be bought yet, so it was a dead end. |
-| "Help" and "FAQ" | 2 buttons, same target | **1** | "Help" removed. |
-| Read an FAQ answer | 2 clicks | **1** | All answers open by default. |
-| Spec details | Hover or click on an ⓘ | **0** | The detail sits under each spec. |
-| Filter skills | Click + type | **1 click** | Quick filters: Kitchen, Laundry, Tidying, Pets, Free. |
+1. **Join from the hero:** the "Join the waitlist" button only scrolled to a form at the bottom. Now the email field and the button sit in the hero. The ZIP code is optional and only asked in the bottom form.
+2. **Lighter header:** the cart opened an empty cart, and "Help" went to the same place as "FAQ". Both are gone.
+3. **Confirmation in place:** joining opened a dialog you had to close. The confirmation now replaces the form.
+4. **One-click skill filters:** Kitchen, Laundry, Tidying, Pets and Free, instead of clicking the search field and typing.
+5. **Spec details shown:** three details were hidden behind ⓘ buttons. They now sit under each spec.
+6. **FAQ answers open:** only the first was open. All five are now, and can still be closed.
+7. **Cookie banner answered once:** the choice is remembered, and the dead "Cookie settings" link is gone.
 
-Code changes in the same pass:
-- The header no longer measures the page on every scroll event. An `IntersectionObserver` tells it when the hero leaves the screen.
-- No more dialogs: about 40 lines of code removed.
-- The fake loading time after "Join" went from 1.8 s to 0.7 s.
-- The page only stores "joined: yes" and the cookie choice, never the email address.
+### Clicks and time per path
 
-Trade-off: the ZIP code is no longer required, so fewer people will give it, but nobody is blocked on the main path. It can be asked for in the confirmation email.
+| Path | Clicks before | Clicks after | Time before | Time after |
+|---|---|---|---|---|
+| **Join the waitlist**, from the top of the page | 4 | **2** | 8.9 s | **3.3 s** |
+| Read an FAQ answer, from the "FAQ" link | 2 | **1** | 2.6 s | **1.3 s** |
+| Filter skills to free ones | 1 + typing | **1** | 2.4 s | **1.3 s** |
+| Read a spec detail | 1 hover or tap | **0** | 1.1 s | **0 s** |
+| Cookie banner on a return visit | 1 | **0** | 1.3 s | **0 s** |
+| Open the cart | 2, to an empty cart | **removed** | 2.6 s | – |
+| Come back after joining | "Join" offered again | **0**, shows "On the list" | – | – |
 
-| Quick join in the hero | One-click skill filters |
+**How the times are worked out:** estimates, not measurements with users. They use the Keystroke-Level Model (Card, Moran and Newell): 1.3 s per click (point, then press), 1.1 s per hover, 0.28 s per key typed. Waits come from the code: 0.5 s scroll before the cursor lands in the form, then 1.8 s (before) or 0.7 s (after) loading. Typing the email is the same on both sides, so it is left out. On the main path: 2 clicks and 5.6 s saved, about 63% faster.
+
+### Before vs after
+
+| Before | After |
 |---|---|
-| ![Hero with the email field and Join button](screenshots/fewer-clicks/hero-quick-join.png) | ![Skills filtered with the Free chip](screenshots/fewer-clicks/skills-quick-filters.png) |
+| ![Hero before](screenshots/fewer-clicks/hero-before.png) | ![Hero after](screenshots/fewer-clicks/hero-after.png) |
+| ![Confirmation dialog before](screenshots/fewer-clicks/confirm-before.png) | ![Inline confirmation after](screenshots/fewer-clicks/confirm-after.png) |
+| ![Skills search before](screenshots/fewer-clicks/skills-before.png) | ![Skills quick filters after](screenshots/fewer-clicks/skills-after.png) |
+| ![Specs with info buttons before](screenshots/fewer-clicks/specs-before.png) | ![Specs with details after](screenshots/fewer-clicks/specs-after.png) |
+| ![FAQ with one answer open before](screenshots/fewer-clicks/faq-before.png) | ![FAQ with all answers open after](screenshots/fewer-clicks/faq-after.png) |
+
+Also in this pass:
+- After joining, every "Join" button says "On the list". The page stores only "joined: yes" and the cookie choice, never the email address.
+- The header no longer measures the page on every scroll event: an `IntersectionObserver` tells it when the hero leaves the screen.
+- The fake loading time after "Join" went from 1.8 s to 0.7 s. No more dialogs: about 40 lines of code removed.
+- Trade-off: the ZIP code is no longer required, so fewer people will give it, but nobody is blocked on the main path.
+- While taking these screenshots, two bugs in the new confirmation were found and fixed: the form stayed visible after joining, and the text was hard to read on the orange band.
 
 ---
 

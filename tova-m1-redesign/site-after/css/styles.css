@@ -768,30 +768,32 @@ section:not(.hero):not(.press) > .section-label::after {
   gap: 8px;
   max-width: 520px;
   padding: 8px;
-  background: var(--card);
-  color: var(--card-foreground);
-  border: 1px solid var(--border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-lg);
 }
 .quick-join .input { height: 48px; }
 .quick-join .field__error, .quick-join__fine { grid-column: 1 / -1; margin: 0 4px; }
-.quick-join__fine { font-size: 12px; color: var(--muted-foreground); }
+.quick-join__fine { font-size: 12px; color: var(--color-text-muted); }
 .quick-join .field__error:not(:has(span:empty)) + .quick-join__fine { display: none; }
 
 .join-done {
   max-width: 520px;
   padding: 16px 18px;
-  background: var(--card);
-  color: var(--card-foreground);
-  border: 1px solid var(--border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
 }
 .join-done__title { display: flex; align-items: center; gap: 10px; font-family: var(--font-display); font-weight: 700; font-size: 18px; }
-.join-done__text { margin-top: 6px; font-size: 14px; color: var(--muted-foreground); }
+.join-done__text { margin-top: 6px; font-size: 14px; color: var(--color-text-secondary); }
 .join-done--order { align-self: start; }
 .join-done:not([hidden]) { animation: rise 400ms cubic-bezier(.2, .7, .2, 1) both; }
-.btn.is-joined { background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); }
+.btn.is-joined { background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border-control); }
+/* Components above set display, which would beat the hidden attribute */
+[data-join-form][hidden], .join-done[hidden] { display: none !important; }
 
 .label__optional { font-weight: 400; color: var(--muted-foreground); }
 
