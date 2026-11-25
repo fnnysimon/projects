@@ -1,6 +1,6 @@
 # E. Build the prototype
 
-Status: to do · [Back to the method](../README.md)
+Status: in progress · [Back to the method](../README.md)
 
 **Goal:** a working cost estimator.
 

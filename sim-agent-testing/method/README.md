@@ -9,8 +9,8 @@ Each step is validated before moving to the next one, and saved here.
 | [A. Understand how Sim charges](A-understand-how-sim-charges/) | Validated |
 | [B. Prove the need](B-prove-the-need/) | Validated |
 | [C. Frame it as a PM](C-frame-it-as-a-pm/) | Validated |
-| [D. Stress-test the idea](D-stress-test-the-idea/) | In progress |
-| [E. Build the prototype](E-build-the-prototype/) | To do |
+| [D. Stress-test the idea](D-stress-test-the-idea/) | Validated |
+| [E. Build the prototype](E-build-the-prototype/) | In progress |
 | [F. Check it against reality](F-check-it-against-reality/) | To do |
 | [G. Publish (final version)](G-publish/) | To do |
 | [H. Write it up](H-write-it-up/) | To do |
