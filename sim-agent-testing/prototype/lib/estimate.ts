@@ -1,5 +1,5 @@
 // Pure cost logic for a Sim workflow, before any run.
-// Spec: method/C-frame-it-as-a-pm and method/D-stress-test-the-idea (V2).
+// Spec: method/C (V1), method/D (V2), method/F (V3: fixes from six real runs).
 
 import {
   BASE_FEE_CREDITS,
@@ -22,7 +22,13 @@ export type Block = {
   customOutput?: number;
   /** Prompt length in tokens (the UI converts characters ÷ 4) */
   promptTokens: number;
+  /** Typical answer length in tokens */
   outputTokens: number;
+  /**
+   * V3: some inputs get a longer answer (e.g. urgent emails get a summary).
+   * In step F, answers ranged from 22 to 90 tokens depending on the category.
+   */
+  longAnswer?: { tokens: number; sharePct: number } | null;
   /** Extra model calls when the agent uses tools; each re-sends the context */
   toolTurns: number;
   loopIterations: number;
@@ -30,11 +36,8 @@ export type Block = {
   sharePct: number;
 };
 
-export type Calibration = {
-  /** Real input and output tokens of one run, read in Sim's logs */
-  inputTokens: number;
-  outputTokens: number;
-};
+/** One real run, read in Sim's logs (total tokens for the run). */
+export type RealRun = { inputTokens: number; outputTokens: number };
 
 export type Workflow = {
   blocks: Block[];
@@ -44,7 +47,8 @@ export type Workflow = {
   monthlyRuns: number;
   keyMode: KeyMode;
   plan: PlanId;
-  calibration?: Calibration | null;
+  /** V3: several real runs; their average replaces the estimated tokens. */
+  calibration?: RealRun[] | null;
 };
 
 export type Line = { label: string; credits: number; providerUsd: number; share: number };
@@ -63,6 +67,7 @@ export type RunCost = {
 
 export type Estimate = {
   mode: "estimate" | "calibrated";
+  calibrationRuns: number;
   low: RunCost;
   expected: RunCost;
   high: RunCost;
@@ -70,6 +75,7 @@ export type Estimate = {
   driver: string;
   whatIf: { label: string; monthlyUsd: number; delta: number }[];
   planFit: { label: string; warning?: string; detail: string };
+  notes: string[];
   summary: string;
 };
 
@@ -97,9 +103,22 @@ export function blockTokens(inputPerCall: number, outputPerCall: number, toolTur
   return { input, output, calls };
 }
 
-type Scenario = { inputFactor: number; outputFactor: number; noToolTurns: boolean };
+/** Output per call for a scenario: the short/long mix, or one end of it. */
+function outputFor(b: Block, which: "expected" | "low" | "high"): number {
+  const long = b.longAnswer && b.longAnswer.sharePct > 0 ? b.longAnswer : null;
+  if (!long) {
+    // V3: step F showed real answers far below the guess, so the low end is −70%.
+    return b.outputTokens * (which === "low" ? 0.3 : which === "high" ? 1.3 : 1);
+  }
+  const share = Math.min(100, long.sharePct) / 100;
+  if (which === "low") return b.outputTokens * 0.8;
+  if (which === "high") return Math.max(b.outputTokens, long.tokens) * 1.2;
+  return (1 - share) * b.outputTokens + share * long.tokens;
+}
 
-const EXPECTED: Scenario = { inputFactor: 1, outputFactor: 1, noToolTurns: false };
+type Scenario = { which: "expected" | "low" | "high"; inputFactor: number; noToolTurns: boolean };
+
+const EXPECTED: Scenario = { which: "expected", inputFactor: 1, noToolTurns: false };
 
 function runCost(wf: Workflow, s: Scenario, tokenScale = { input: 1, output: 1 }): RunCost {
   const hosted = wf.keyMode === "hosted";
@@ -110,7 +129,7 @@ function runCost(wf: Workflow, s: Scenario, tokenScale = { input: 1, output: 1 }
   for (const b of wf.blocks) {
     const price = priceOf(b);
     const inPerCall = (b.promptTokens + wf.sampleInputTokens) * s.inputFactor * tokenScale.input;
-    const outPerCall = b.outputTokens * s.outputFactor * tokenScale.output;
+    const outPerCall = outputFor(b, s.which) * tokenScale.output;
     const t = blockTokens(inPerCall, outPerCall, s.noToolTurns ? 0 : b.toolTurns);
     const reach = Math.max(0, b.loopIterations) * (Math.min(100, Math.max(0, b.sharePct)) / 100);
     const inTok = t.input * reach;
@@ -159,33 +178,42 @@ function driverSentence(c: RunCost): string {
   if (top.label === "Paid tools") {
     return `Paid tools are ${pct(top.share)} of the cost: fewer tool calls per run is the main lever.`;
   }
-  return `${top.label} is ${pct(top.share)} of the cost: the model, the prompt length and the loop size are the levers.`;
+  return `${top.label} is ${pct(top.share)} of the cost: the model, the answer length and the loop size are the levers.`;
 }
 
 export function estimate(wf: Workflow): Estimate {
-  const calibrated = !!wf.calibration && wf.calibration.inputTokens > 0 && wf.calibration.outputTokens > 0;
+  const runsIn = (wf.calibration ?? []).filter((r) => r.inputTokens > 0 && r.outputTokens > 0);
+  const calibrated = runsIn.length > 0;
+  const base = runCost(wf, EXPECTED);
+  const scaleFor = (r: RealRun) => ({
+    input: base.inputTokens > 0 ? r.inputTokens / base.inputTokens : 1,
+    output: base.outputTokens > 0 ? r.outputTokens / base.outputTokens : 1,
+  });
 
-  let scale = { input: 1, output: 1 };
+  let expected: RunCost, low: RunCost, high: RunCost, scale = { input: 1, output: 1 };
   if (calibrated) {
-    const base = runCost(wf, EXPECTED);
-    scale = {
-      input: base.inputTokens > 0 ? wf.calibration!.inputTokens / base.inputTokens : 1,
-      output: base.outputTokens > 0 ? wf.calibration!.outputTokens / base.outputTokens : 1,
+    // V3: average several real runs; the range is the cheapest and dearest real run.
+    const avg = {
+      inputTokens: runsIn.reduce((a, r) => a + r.inputTokens, 0) / runsIn.length,
+      outputTokens: runsIn.reduce((a, r) => a + r.outputTokens, 0) / runsIn.length,
     };
+    scale = scaleFor(avg);
+    expected = runCost(wf, EXPECTED, scale);
+    const perRun = runsIn.map((r) => runCost(wf, EXPECTED, scaleFor(r)));
+    const sorted = perRun.sort((a, b) => a.totalUsd - b.totalUsd);
+    if (runsIn.length >= 2) {
+      low = sorted[0];
+      high = sorted[sorted.length - 1];
+    } else {
+      low = runCost(wf, { ...EXPECTED, inputFactor: 0.9 }, { input: scale.input, output: scale.output * 0.5 });
+      high = runCost(wf, { ...EXPECTED, inputFactor: 1.1 }, { input: scale.input, output: scale.output * 1.5 });
+    }
+  } else {
+    expected = base;
+    low = runCost(wf, { which: "low", inputFactor: 0.9, noToolTurns: true });
+    high = runCost(wf, { which: "high", inputFactor: 1.3, noToolTurns: false });
   }
 
-  // Estimate: output ±30%, input +30% on the high side, no tool turns on the low side.
-  // Calibrated: real tokens are known, so only ±10% for variation between inputs.
-  const lowS: Scenario = calibrated
-    ? { inputFactor: 0.9, outputFactor: 0.9, noToolTurns: false }
-    : { inputFactor: 1, outputFactor: 0.7, noToolTurns: true };
-  const highS: Scenario = calibrated
-    ? { inputFactor: 1.1, outputFactor: 1.1, noToolTurns: false }
-    : { inputFactor: 1.3, outputFactor: 1.3, noToolTurns: false };
-
-  const expected = runCost(wf, EXPECTED, scale);
-  const low = runCost(wf, lowS, scale);
-  const high = runCost(wf, highS, scale);
   const runs = Math.max(0, wf.monthlyRuns);
   const monthly = { low: low.totalUsd * runs, expected: expected.totalUsd * runs, high: high.totalUsd * runs };
 
@@ -203,10 +231,12 @@ export function estimate(wf: Workflow): Estimate {
     },
   ];
   const hasLoop = wf.blocks.some((b) => b.loopIterations > 1);
-  const whatIf = variants.filter((v) => hasLoop || v.label !== "Loop iterations halved").map((v) => {
-    const m = runCost(v.wf, EXPECTED, scale).totalUsd * Math.max(0, v.wf.monthlyRuns);
-    return { label: v.label, monthlyUsd: m, delta: monthly.expected > 0 ? m / monthly.expected - 1 : 0 };
-  });
+  const whatIf = variants
+    .filter((v) => hasLoop || v.label !== "Loop iterations halved")
+    .map((v) => {
+      const m = runCost(v.wf, EXPECTED, scale).totalUsd * Math.max(0, v.wf.monthlyRuns);
+      return { label: v.label, monthlyUsd: m, delta: monthly.expected > 0 ? m / monthly.expected - 1 : 0 };
+    });
 
   // Plan fit (Sim credits only; the provider bill is outside the plan)
   const plan = PLANS[wf.plan];
@@ -215,7 +245,12 @@ export function estimate(wf: Workflow): Estimate {
   if (!plan.recurring) {
     const months = monthlyCredits > 0 ? plan.credits / monthlyCredits : Infinity;
     planFit = {
-      label: months === Infinity ? "No credits used" : months >= 1 ? `Covers about ${months.toFixed(1)} months` : `Covers about ${Math.round(months * 30)} days`,
+      label:
+        months === Infinity
+          ? "No credits used"
+          : months >= 1
+            ? `Covers about ${months.toFixed(1)} months`
+            : `Covers about ${Math.round(months * 30)} days`,
       detail: plan.note,
       warning:
         wf.keyMode === "hosted" && !plan.hostedModels
@@ -231,8 +266,24 @@ export function estimate(wf: Workflow): Estimate {
     };
   }
 
+  // V3 notes, from what the real runs showed
+  const notes: string[] = [
+    "Failed runs are charged too: each costs the 1-credit base fee (seen in step F).",
+  ];
+  if (wf.keyMode === "byok") {
+    notes.push("With your own keys, Sim's logs show the model cost as $0: check the provider's bill for that part.");
+  }
+  if (calibrated && runsIn.length < 3) {
+    notes.push("Calibrated on fewer than 3 runs: add runs with different inputs for a reliable average.");
+  }
+  if (!calibrated && wf.blocks.some((b) => !b.longAnswer || b.longAnswer.sharePct === 0)) {
+    notes.push("Answer length is the main uncertainty. If some inputs get a longer answer, set it per block.");
+  }
+
   const driver = driverSentence(expected);
-  const modeLabel = calibrated ? "calibrated on one real run" : "estimated without running";
+  const modeLabel = calibrated
+    ? `calibrated on ${runsIn.length} real run${runsIn.length === 1 ? "" : "s"}`
+    : "estimated without running";
   const doubled = whatIf[0].monthlyUsd;
   const summary = [
     `Monthly cost: about ${usd(monthly.expected)} for ${runs.toLocaleString("en-US")} runs (${modeLabel}).`,
@@ -244,5 +295,17 @@ export function estimate(wf: Workflow): Estimate {
     `If volume doubles: about ${usd(doubled)} a month.`,
   ].join("\n");
 
-  return { mode: calibrated ? "calibrated" : "estimate", low, expected, high, monthly, driver, whatIf, planFit, summary };
+  return {
+    mode: calibrated ? "calibrated" : "estimate",
+    calibrationRuns: runsIn.length,
+    low,
+    expected,
+    high,
+    monthly,
+    driver,
+    whatIf,
+    planFit,
+    notes,
+    summary,
+  };
 }

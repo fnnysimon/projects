@@ -37,7 +37,7 @@ const newBlock = (n: number): Block => ({
 export function AgentCostPreview() {
   const [presetId, setPresetId] = useState("email");
   const [wf, setWf] = useState<Workflow>(() => fresh(PRESETS[0].workflow));
-  const [cal, setCal] = useState({ input: "", output: "" });
+  const [cal, setCal] = useState("");
   const [importText, setImportText] = useState("");
   const [importMsg, setImportMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
   const [copied, setCopied] = useState(false);
@@ -50,15 +50,19 @@ export function AgentCostPreview() {
   const choosePreset = (id: string) => {
     setPresetId(id);
     setWf(fresh(PRESETS.find((p) => p.id === id)!.workflow));
-    setCal({ input: "", output: "" });
+    setCal("");
     setImportMsg(null);
   };
 
-  const updateCal = (next: { input: string; output: string }) => {
-    setCal(next);
-    const i = Number(next.input);
-    const o = Number(next.output);
-    set({ calibration: i > 0 && o > 0 ? { inputTokens: i, outputTokens: o } : null });
+  const updateCal = (text: string) => {
+    setCal(text);
+    const runs = text
+      .split(/\n/)
+      .map((l) => l.match(/(\d[\d,]*)\D+(\d[\d,]*)/))
+      .filter((m): m is RegExpMatchArray => !!m)
+      .map((m) => ({ inputTokens: Number(m[1].replace(/,/g, "")), outputTokens: Number(m[2].replace(/,/g, "")) }))
+      .filter((r) => r.inputTokens > 0 && r.outputTokens > 0);
+    set({ calibration: runs.length ? runs : null });
   };
 
   const runImport = () => {
@@ -178,7 +182,7 @@ export function AgentCostPreview() {
                         </select>
                       </F>
                       <Num id={`${b.id}-p`} label="Prompt tokens" value={b.promptTokens} onChange={(v) => setBlock(b.id, { promptTokens: v })} />
-                      <Num id={`${b.id}-o`} label="Output tokens" value={b.outputTokens} onChange={(v) => setBlock(b.id, { outputTokens: v })} />
+                      <Num id={`${b.id}-o`} label="Answer tokens (typical)" value={b.outputTokens} onChange={(v) => setBlock(b.id, { outputTokens: v })} />
                       {b.modelId === "custom" && (
                         <>
                           <Num id={`${b.id}-ci`} label="Input $ / 1M tokens" step="any" value={b.customInput ?? 0} onChange={(v) => setBlock(b.id, { customInput: v })} />
@@ -189,7 +193,14 @@ export function AgentCostPreview() {
                       <Num id={`${b.id}-t`} label="Tool-call turns" value={b.toolTurns} onChange={(v) => setBlock(b.id, { toolTurns: v })} />
                       <Num id={`${b.id}-l`} label="Loop iterations" min={1} value={b.loopIterations} onChange={(v) => setBlock(b.id, { loopIterations: v })} />
                       <Num id={`${b.id}-s`} label="% of runs reaching it" max={100} value={b.sharePct} onChange={(v) => setBlock(b.id, { sharePct: v })} />
+                      <Num id={`${b.id}-lt`} label="Long answer tokens" value={b.longAnswer?.tokens ?? 0}
+                        onChange={(v) => setBlock(b.id, { longAnswer: { tokens: v, sharePct: b.longAnswer?.sharePct ?? 0 } })} />
+                      <Num id={`${b.id}-ls`} label="% of inputs with a long answer" max={100} value={b.longAnswer?.sharePct ?? 0}
+                        onChange={(v) => setBlock(b.id, { longAnswer: { tokens: b.longAnswer?.tokens ?? 0, sharePct: v } })} />
                     </div>
+                    <p className="mt-2 text-[11px] text-muted-foreground">
+                      Some inputs get a longer answer (e.g. urgent emails get a summary). In real runs, answers went from 22 to 90 tokens.
+                    </p>
                     <details className="mt-3">
                       <summary className="cursor-pointer text-xs text-muted-foreground">Paste the prompt to count its tokens</summary>
                       <textarea rows={3} className={`${field} mt-2 resize-y`} placeholder="Paste the block's prompt"
@@ -220,21 +231,18 @@ export function AgentCostPreview() {
 
           <details className={card}>
             <summary className="cursor-pointer text-sm font-semibold">
-              Calibrate with one real run <span className="font-normal text-muted-foreground">(optional, more accurate)</span>
+              Calibrate with real runs <span className="font-normal text-muted-foreground">(optional, more accurate)</span>
             </summary>
             <p className="my-3 text-xs leading-relaxed text-muted-foreground">
-              Run the workflow once in Sim, open the run in the logs, and copy its total input and output tokens. They replace the estimated token counts.
+              Run the workflow 3 to 5 times in Sim on different inputs. For each run, open it in the logs and copy its input and output tokens, one run per line. Their average replaces the estimate, and the range becomes the cheapest and dearest run.
             </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <F label="Real input tokens" id="ci">
-                <input id="ci" type="number" min={0} className={field} value={cal.input} placeholder="e.g. 612"
-                  onChange={(e) => updateCal({ ...cal, input: e.target.value })} />
-              </F>
-              <F label="Real output tokens" id="co">
-                <input id="co" type="number" min={0} className={field} value={cal.output} placeholder="e.g. 140"
-                  onChange={(e) => updateCal({ ...cal, output: e.target.value })} />
-              </F>
-            </div>
+            <F label="Real runs (input tokens, output tokens)" id="cal">
+              <textarea id="cal" rows={4} className={`${field} resize-y font-mono text-xs`} value={cal}
+                placeholder={"91, 68\n155, 23\n123, 22"} onChange={(e) => updateCal(e.target.value)} />
+            </F>
+            {result.mode === "calibrated" && (
+              <p className="mt-2 text-xs text-muted-foreground">Using {result.calibrationRuns} run{result.calibrationRuns === 1 ? "" : "s"}.</p>
+            )}
           </details>
 
           <details className={card}>
@@ -264,7 +272,7 @@ export function AgentCostPreview() {
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-base font-semibold">What drives the cost</h2>
               <span className="rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
-                {result.mode === "calibrated" ? "Calibrated" : "Estimate"}
+                {result.mode === "calibrated" ? `Calibrated · ${result.calibrationRuns} run${result.calibrationRuns === 1 ? "" : "s"}` : "Estimate"}
               </span>
             </div>
             <p className="text-lg leading-snug">{result.driver}</p>
@@ -283,11 +291,17 @@ export function AgentCostPreview() {
               )}
               <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
                 {result.mode === "calibrated"
-                  ? "Range: ±10% around the real run, for variation between inputs."
-                  : "Low: 30% fewer output tokens, no tool turns. High: 30% more input and output tokens. Retries and fallback models aren't included."}
+                  ? "Range: the cheapest and the dearest real run (±50% on the answer with a single run)."
+                  : "Low: shortest answers, no tool turns. High: longest answers and 30% more input. Retries and fallback models aren't included."}
               </p>
             </div>
           </div>
+
+          {result.notes.length > 0 && (
+            <ul className="list-disc space-y-1 rounded-lg border border-border bg-muted px-8 py-4 text-xs leading-relaxed text-muted-foreground">
+              {result.notes.map((n) => <li key={n}>{n}</li>)}
+            </ul>
+          )}
 
           <div className={card}>
             <h2 className="mb-3 text-base font-semibold">What if</h2>

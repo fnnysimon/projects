@@ -26,7 +26,7 @@ export const MODELS: ModelPrice[] = [
   { id: "gpt-5.5", label: "gpt-5.5", input: 5, output: 30 },
   { id: "gpt-4.1-mini", label: "gpt-4.1-mini", input: 0.4, output: 1.6 },
   { id: "gpt-oss-120b", label: "gpt-oss-120b", input: 0.15, output: 0.6 },
-  { id: "gemini-2.5-flash-lite", label: "gemini-2.5-flash-lite", input: 0.1, output: 0.4 },
+  // gemini-2.5-flash-lite left out: still in Sim's table, but Google refuses it to new users (step F).
   { id: "gemini-3.5-flash-lite", label: "gemini-3.5-flash-lite", input: 0.3, output: 2.5 },
 ];
 

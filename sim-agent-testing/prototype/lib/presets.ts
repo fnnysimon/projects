@@ -6,7 +6,7 @@ export const PRESETS: Preset[] = [
   {
     id: "email",
     label: "Email triage agent",
-    description: "One agent sorts each client email (urgent / normal / spam).",
+    description: "One agent sorts each client email (urgent / normal / spam). Answer lengths come from 6 real runs in step F.",
     workflow: {
       blocks: [
         {
@@ -14,7 +14,8 @@ export const PRESETS: Preset[] = [
           name: "Classifier",
           modelId: "gpt-4.1-mini",
           promptTokens: 300, // ~1,200 characters
-          outputTokens: 120,
+          outputTokens: 25, // normal and spam answers: 22 to 29 tokens in step F
+          longAnswer: { tokens: 80, sharePct: 20 }, // urgent answers with a summary: 68 to 90 tokens
           toolTurns: 0,
           loopIterations: 1,
           sharePct: 100,
