@@ -8,7 +8,7 @@ Unaffiliated exercise.
 
 Sim covers the whole agent lifecycle: build, deploy (with versioned snapshots), run and monitor. One step looks missing: **checking that an agent behaves correctly before it goes live**. In a regulated field such as banking, you cannot deploy an agent that sorts client emails without knowing how often it gets them wrong.
 
-This hypothesis is tested in step 1 and confirmed or replaced in step 2.
+After the first discovery session, the hypothesis is sharper: Sim has an Evaluator block, but it has a model score one run at a time. There is no way to run a set of test emails with expected answers and get an accuracy rate before deploying, and no way to estimate the cost of a run before it happens. See [discovery notes](docs/01-discovery.md).
 
 ## Use case
 
