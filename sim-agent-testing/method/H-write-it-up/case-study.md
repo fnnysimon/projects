@@ -1,5 +1,7 @@
 ## Agent Cost Preview for Sim — Process & Iteration
 
+> **A proposed solution to the "cost review" problem of AI agents:** today, nobody can review what an agent will cost before it goes live.
+
 ### The Problem
 
 Sim shows what an agent run cost only after it has run, as one total per run. A builder who needs budget approval has to spend credits on test runs, then rebuild the monthly figure in a spreadsheet — 7 actions, and still no idea which block drives the bill.
