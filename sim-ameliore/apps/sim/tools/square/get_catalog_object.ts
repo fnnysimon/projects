@@ -1,0 +1,89 @@
+import { ErrorExtractorId } from '@/tools/error-extractors'
+import { SQUARE_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { CatalogObjectResponse, GetCatalogObjectParams } from '@/tools/square/types'
+import {
+  CATALOG_OBJECT_METADATA_OUTPUT_PROPERTIES,
+  CATALOG_OBJECT_OUTPUT,
+  SQUARE_ENVIRONMENTS,
+  squareHeaders,
+} from '@/tools/square/types'
+import type { ToolConfig } from '@/tools/types'
+
+export const squareGetCatalogObjectTool: ToolConfig<GetCatalogObjectParams, CatalogObjectResponse> =
+  {
+    id: 'square_get_catalog_object',
+    name: 'Square Get Catalog Object',
+    description: 'Retrieve a single catalog object by its ID',
+    version: '1.0.0',
+    oauth: SQUARE_CREDENTIAL_OAUTH,
+    errorExtractor: ErrorExtractorId.SQUARE_ERRORS,
+
+    params: {
+      environment: SQUARE_ENVIRONMENTS.param,
+      apiKey: {
+        type: 'string',
+        required: true,
+        visibility: 'user-only',
+        description: 'Square access token (personal access token)',
+      },
+      objectId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'ID of the catalog object to retrieve',
+      },
+      includeRelatedObjects: {
+        type: 'boolean',
+        required: false,
+        visibility: 'user-or-llm',
+        description: 'Whether to include related objects such as an item variations',
+      },
+    },
+
+    request: {
+      url: (params) => {
+        const url = new URL(
+          `${SQUARE_ENVIRONMENTS.apiBase(params.environment)}/v2/catalog/object/${encodeURIComponent(params.objectId)}`
+        )
+        if (params.includeRelatedObjects != null) {
+          url.searchParams.append('include_related_objects', String(params.includeRelatedObjects))
+        }
+        return url.toString()
+      },
+      method: 'GET',
+      headers: (params) => squareHeaders(params.apiKey),
+    },
+
+    transformResponse: async (response) => {
+      const data = await response.json()
+      const object = data.object ?? {}
+      return {
+        success: true,
+        output: {
+          object,
+          related_objects: data.related_objects ?? [],
+          metadata: {
+            id: object.id,
+            type: object.type ?? null,
+            version: object.version ?? null,
+          },
+        },
+      }
+    },
+
+    outputs: {
+      object: { ...CATALOG_OBJECT_OUTPUT, description: 'The retrieved catalog object' },
+      related_objects: {
+        type: 'array',
+        description:
+          'Catalog objects referenced by the retrieved object (returned when Include Related Objects is true)',
+        optional: true,
+        items: CATALOG_OBJECT_OUTPUT,
+      },
+      metadata: {
+        type: 'json',
+        description: 'Catalog object summary metadata',
+        properties: CATALOG_OBJECT_METADATA_OUTPUT_PROPERTIES,
+      },
+    },
+  }

@@ -1,0 +1,103 @@
+import type { DynamoDBGetParams, DynamoDBGetResponse } from '@/tools/dynamodb/types'
+import { AWS_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { InternalToolConfig } from '@/tools/types'
+
+export const getTool: InternalToolConfig<DynamoDBGetParams, DynamoDBGetResponse> = {
+  id: 'dynamodb_get',
+  name: 'DynamoDB Get',
+  description: 'Get an item from a DynamoDB table by primary key',
+  version: '1.0.0',
+  oauth: AWS_CREDENTIAL_OAUTH,
+
+  params: {
+    region: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'AWS region (e.g., us-east-1)',
+    },
+    accessKeyId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'AWS access key ID',
+    },
+    secretAccessKey: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'AWS secret access key',
+    },
+    tableName: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'DynamoDB table name (e.g., "Users", "Orders")',
+    },
+    key: {
+      type: 'json',
+      required: true,
+      visibility: 'user-or-llm',
+      description:
+        'Primary key of the item to retrieve (e.g., {"pk": "USER#123"} or {"pk": "ORDER#456", "sk": "ITEM#789"})',
+    },
+    consistentRead: {
+      type: 'boolean',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Use strongly consistent read',
+    },
+    projectionExpression: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description:
+        'Attributes to retrieve (e.g., "pk, #name, email"). Returns all attributes if omitted',
+    },
+    expressionAttributeNames: {
+      type: 'json',
+      required: false,
+      visibility: 'user-or-llm',
+      description:
+        'Attribute name mappings for reserved words used in projectionExpression (e.g., {"#name": "name"})',
+    },
+  },
+
+  operation: {
+    input: (params) => ({
+      region: params.region,
+      accessKeyId: params.accessKeyId,
+      secretAccessKey: params.secretAccessKey,
+      tableName: params.tableName,
+      key: params.key,
+      ...(params.consistentRead !== undefined && { consistentRead: params.consistentRead }),
+      ...(params.projectionExpression && { projectionExpression: params.projectionExpression }),
+      ...(params.projectionExpression &&
+        params.expressionAttributeNames && {
+          expressionAttributeNames: params.expressionAttributeNames,
+        }),
+    }),
+  },
+
+  transformResponse: async (response: Response) => {
+    const data = await response.json()
+
+    if (!response.ok) {
+      throw new Error(data.error || 'DynamoDB get failed')
+    }
+
+    return {
+      success: true,
+      output: {
+        message: data.message || 'Item retrieved successfully',
+        item: data.item,
+      },
+      error: undefined,
+    }
+  },
+
+  outputs: {
+    message: { type: 'string', description: 'Operation status message' },
+    item: { type: 'json', description: 'Retrieved item', optional: true },
+  },
+}

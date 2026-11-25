@@ -1,0 +1,85 @@
+# Bundled Ollama, layered on top of docker-compose.prod.yml. The base file
+# supplies the app, realtime, migrations, Redis, cron and Postgres (with their
+# required .env secrets); this file only adds an Ollama server and points the
+# app at it. Add OLLAMA_URL=http://ollama:11434 to .env, then pick exactly one
+# of the cpu or gpu profiles:
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.ollama.yml --profile cpu up -d
+#   docker compose -f docker-compose.prod.yml -f docker-compose.ollama.yml --profile gpu up -d
+#
+# Pull the starter model once (Ollama must already be running):
+#
+#   docker compose -f docker-compose.prod.yml -f docker-compose.ollama.yml --profile setup run --rm model-setup
+#
+# Ollama is not published to the host: only the app reaches it, over the
+# Compose network as ollama:11434.
+
+services:
+  simstudio:
+    environment:
+      # Required in .env rather than hardcoded here, so a run of the base file
+      # alone (`sim-setup update`) still points the app at Ollama. Both
+      # Ollama services answer to the network name `ollama`.
+      - 'OLLAMA_URL=${OLLAMA_URL:?set OLLAMA_URL=http://ollama:11434 in .env}'
+
+  # NVIDIA GPU (needs the NVIDIA Container Toolkit on the host).
+  ollama:
+    profiles:
+      - gpu
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_KEEP_ALIVE=-1
+      - NVIDIA_DRIVER_CAPABILITIES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  ollama-cpu:
+    profiles:
+      - cpu
+    image: ollama/ollama:latest
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_KEEP_ALIVE=-1
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      default:
+        aliases:
+          - ollama
+
+  # One-shot: waits for the running Ollama server and pulls the starter model
+  # into its volume through the API.
+  model-setup:
+    profiles:
+      - setup
+    image: ollama/ollama:latest
+    restart: 'no'
+    environment:
+      - OLLAMA_HOST=ollama:11434
+    entrypoint: ['/bin/sh', '-c']
+    command: ['until ollama list >/dev/null 2>&1; do sleep 2; done && ollama pull gemma3:4b']
+
+volumes:
+  ollama_data:

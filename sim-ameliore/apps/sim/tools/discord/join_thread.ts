@@ -1,0 +1,57 @@
+import type { DiscordJoinThreadParams, DiscordJoinThreadResponse } from '@/tools/discord/types'
+import { DISCORD_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const discordJoinThreadTool: ToolConfig<DiscordJoinThreadParams, DiscordJoinThreadResponse> =
+  {
+    id: 'discord_join_thread',
+    name: 'Discord Join Thread',
+    description: 'Join a thread in Discord',
+    version: '1.0.0',
+    oauth: DISCORD_CREDENTIAL_OAUTH,
+
+    params: {
+      botToken: {
+        type: 'string',
+        required: true,
+        visibility: 'user-only',
+        description: 'The bot token for authentication',
+      },
+      threadId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The thread ID to join, e.g., 123456789012345678',
+      },
+      serverId: {
+        type: 'string',
+        required: false,
+        visibility: 'user-or-llm',
+        description: 'The Discord server ID (guild ID), e.g., 123456789012345678',
+      },
+    },
+
+    request: {
+      url: (params: DiscordJoinThreadParams) => {
+        return `https://discord.com/api/v10/channels/${safeUrlPathSegment(params.threadId, 'threadId')}/thread-members/@me`
+      },
+      method: 'PUT',
+      headers: (params) => ({
+        Authorization: `Bot ${params.botToken.trim()}`,
+      }),
+    },
+
+    transformResponse: async () => {
+      return {
+        success: true,
+        output: {
+          message: 'Joined thread successfully',
+        },
+      }
+    },
+
+    outputs: {
+      message: { type: 'string', description: 'Success or error message' },
+    },
+  }

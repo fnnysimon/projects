@@ -1,0 +1,62 @@
+import { DEVIN_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+import type { DevinGetSessionTagsParams, DevinSessionTagsResponse } from './types'
+
+export const devinGetSessionTagsTool: ToolConfig<
+  DevinGetSessionTagsParams,
+  DevinSessionTagsResponse
+> = {
+  id: 'devin_get_session_tags',
+  name: 'Devin Get Session Tags',
+  description: 'Retrieve the tags currently applied to a Devin session.',
+  version: '1.0.0',
+  oauth: DEVIN_CREDENTIAL_OAUTH,
+
+  params: {
+    apiKey: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'Devin API key (service user credential starting with cog_)',
+    },
+    orgId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'Devin organization ID (prefixed with org-)',
+    },
+    sessionId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'The session ID to retrieve tags for',
+    },
+  },
+
+  request: {
+    url: (params) =>
+      `https://api.devin.ai/v3/organizations/${safeUrlPathSegment(params.orgId, 'orgId')}/sessions/${safeUrlPathSegment(params.sessionId, 'sessionId')}/tags`,
+    method: 'GET',
+    headers: (params) => ({
+      Authorization: `Bearer ${params.apiKey}`,
+    }),
+  },
+
+  transformResponse: async (response: Response) => {
+    const data = await response.json()
+    return {
+      success: true,
+      output: {
+        tags: data.tags ?? [],
+      },
+    }
+  },
+
+  outputs: {
+    tags: {
+      type: 'json',
+      description: 'Tags applied to the session (array of strings)',
+    },
+  },
+}

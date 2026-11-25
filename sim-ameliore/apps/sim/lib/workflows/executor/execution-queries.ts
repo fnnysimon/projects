@@ -1,0 +1,107 @@
+import { db } from '@sim/db'
+import { pausedExecutions, workflowExecutionLogs } from '@sim/db/schema'
+import { and, asc, desc, eq, gt, gte, lt, lte, or, sql } from 'drizzle-orm'
+import { somePausePointMatches } from '@/lib/workflows/executor/pause-point-sql'
+
+export type WorkflowExecutionStatus =
+  | 'pending'
+  | 'running'
+  | 'completed'
+  | 'failed'
+  | 'cancelled'
+  | 'paused'
+
+export interface WorkflowExecutionCursor {
+  startedAt: Date
+  rowId: string
+}
+
+export interface ListWorkflowExecutionsInput {
+  workflowId: string
+  status?: WorkflowExecutionStatus
+  trigger?: string
+  startDate?: Date
+  endDate?: Date
+  limit: number
+  cursor?: WorkflowExecutionCursor
+  order: 'asc' | 'desc'
+}
+
+/** A point a resume can still act on: any `resumeStatus` but `resumed` or `failed`, absent included. */
+const POINT_UNSETTLED =
+  '!(@.resumeStatus.type() == "string" && (@.resumeStatus == "resumed" || @.resumeStatus == "failed"))'
+
+/**
+ * An open pause record reads `paused` unless the log has finished and no point is left to resume,
+ * the same rule `readWorkflowExecutionStatus` applies to a single run.
+ */
+const executionStatus = sql<string>`CASE
+  WHEN ${pausedExecutions.status} IN ('paused', 'partially_resumed')
+    AND NOT (
+      ${workflowExecutionLogs.status} IN ('completed', 'failed', 'cancelled')
+      AND NOT ${somePausePointMatches(POINT_UNSETTLED)}
+    )
+  THEN 'paused'
+  ELSE ${workflowExecutionLogs.status}
+END`
+
+/** Lists the durable execution projection for a workflow. */
+export async function listWorkflowExecutions(input: ListWorkflowExecutionsInput) {
+  const cursorCondition = input.cursor
+    ? input.order === 'desc'
+      ? or(
+          lt(workflowExecutionLogs.startedAt, input.cursor.startedAt),
+          and(
+            eq(workflowExecutionLogs.startedAt, input.cursor.startedAt),
+            lt(workflowExecutionLogs.id, input.cursor.rowId)
+          )
+        )
+      : or(
+          gt(workflowExecutionLogs.startedAt, input.cursor.startedAt),
+          and(
+            eq(workflowExecutionLogs.startedAt, input.cursor.startedAt),
+            gt(workflowExecutionLogs.id, input.cursor.rowId)
+          )
+        )
+    : undefined
+
+  const rows = await db
+    .select({
+      rowId: workflowExecutionLogs.id,
+      executionId: workflowExecutionLogs.executionId,
+      workflowId: workflowExecutionLogs.workflowId,
+      status: executionStatus,
+      trigger: workflowExecutionLogs.trigger,
+      startedAt: workflowExecutionLogs.startedAt,
+      endedAt: workflowExecutionLogs.endedAt,
+      durationMs: workflowExecutionLogs.totalDurationMs,
+      costTotal: workflowExecutionLogs.costTotal,
+    })
+    .from(workflowExecutionLogs)
+    .leftJoin(pausedExecutions, eq(pausedExecutions.executionId, workflowExecutionLogs.executionId))
+    .where(
+      and(
+        eq(workflowExecutionLogs.workflowId, input.workflowId),
+        input.status ? eq(executionStatus, input.status) : undefined,
+        input.trigger ? eq(workflowExecutionLogs.trigger, input.trigger) : undefined,
+        input.startDate ? gte(workflowExecutionLogs.startedAt, input.startDate) : undefined,
+        input.endDate ? lte(workflowExecutionLogs.startedAt, input.endDate) : undefined,
+        cursorCondition
+      )
+    )
+    .orderBy(
+      input.order === 'desc'
+        ? desc(workflowExecutionLogs.startedAt)
+        : asc(workflowExecutionLogs.startedAt),
+      input.order === 'desc' ? desc(workflowExecutionLogs.id) : asc(workflowExecutionLogs.id)
+    )
+    .limit(input.limit + 1)
+
+  const hasMore = rows.length > input.limit
+  const data = rows.slice(0, input.limit)
+  const last = data.at(-1)
+  return {
+    data,
+    nextCursor: hasMore && last ? { startedAt: last.startedAt, rowId: last.rowId } : null,
+  }
+}

@@ -1,0 +1,596 @@
+import { slackFileDownloadUrl } from '@/lib/internal/slack/file-download'
+import { recordSearchProviderSignal } from '@/lib/knowledge/search/diagnostics'
+import { dateSortDirection, nativeDateBounds, nativeText } from '@/lib/sim-search/live/dates'
+import {
+  documentExtension,
+  extractDocumentText,
+  MAX_FILE_TEXT_BYTES,
+} from '@/lib/sim-search/live/file-text'
+import {
+  array,
+  NATIVE_RESPONSE_MAX_BYTES,
+  NativeSearchError,
+  object,
+  string,
+} from '@/lib/sim-search/live/http'
+import { joinMessages } from '@/lib/sim-search/live/pages'
+import { permitsResources } from '@/lib/sim-search/live/policy'
+import {
+  slackConversationName,
+  slackConversationUrl,
+  slackPlainText,
+} from '@/lib/sim-search/live/slack-format'
+import { providerText } from '@/lib/sim-search/live/text'
+import type {
+  NativeClient,
+  NativeDocument,
+  NativePage,
+  NativeSearchInput,
+} from '@/lib/sim-search/live/types'
+import { formatFileSize } from '@/lib/uploads/utils/file'
+import { normalizeMimeType } from '@/lib/uploads/utils/mime'
+import { fileBrowserTypeLabel } from '@/lib/workspace-files/browser'
+
+/** Slack's own label for an account whose name is unavailable. */
+const SLACK_MEMBER = 'Slack member'
+/** Time a file download may take before the read settles for the preview it already has. */
+const FILE_DOWNLOAD_TIMEOUT_MS = 5_000
+/** Bytes downloaded per format: markup roughly doubles a canvas's text. */
+const MAX_FILE_DOWNLOAD_BYTES = {
+  html: 2 * MAX_FILE_TEXT_BYTES,
+  plain: MAX_FILE_TEXT_BYTES,
+  pdf: NATIVE_RESPONSE_MAX_BYTES,
+  docx: NATIVE_RESPONSE_MAX_BYTES,
+} as const
+/** Directory lookups one read may make; a DM or typical thread has only a few authors. */
+const MAX_AUTHOR_LOOKUPS = 10
+
+function slackResult(value: unknown) {
+  const data = object(value)
+  if (data.ok !== true) {
+    const code = string(data.error)
+    throw new NativeSearchError(
+      code === 'ratelimited' || code === 'rate_limited'
+        ? 'rate_limited'
+        : code === 'missing_scope' || code === 'invalid_auth' || code === 'token_revoked'
+          ? 'reconnect'
+          : 'unavailable',
+      code === 'missing_scope'
+        ? 'Reconnect Slack with RTS search scopes. The Slack app must be internal or directory-approved for RTS.'
+        : `Slack search is unavailable (${code || 'invalid response'}).`
+    )
+  }
+  return data
+}
+
+/** Channels a search names in its status, so the client can filter on one with `in:<#ID>`. */
+const MAX_LISTED_CHANNELS = 5
+
+interface SlackChannel {
+  id: string
+  name: string
+  archived: boolean
+}
+
+/**
+ * Channels from an RTS response that the account's source settings let it search. The ID comes
+ * from the permalink, as RTS channel results carry no ID field.
+ */
+function searchableChannels(data: Record<string, unknown>, input: NativeSearchInput) {
+  return array(object(data.results).channels).flatMap((channel): SlackChannel[] => {
+    const id = string(channel.permalink).match(/\/archives\/([CG][A-Z0-9]+)$/)?.[1]
+    const name = string(channel.name)
+    const archived = channel.is_archived === true
+    if (!id || !name) return []
+    if (input.policy && !permitsResources(input.policy, [id])) return []
+    if (archived && input.policy?.includeArchived === false) return []
+    return [{ id, name, archived }]
+  })
+}
+
+const channelLabel = ({ id, name, archived }: SlackChannel) =>
+  `#${name} (in:<#${id}>${archived ? ', archived' : ''})`
+
+/**
+ * The channel name an `in:#name` filter in the query or modifiers names, without a trailing period.
+ * A query that also carries an `in:<#ID>` scope gets no lookup: a source limited to selected
+ * channels adds one to each search it runs per channel and drops the notes of the empty ones.
+ */
+function filteredChannelName(input: NativeSearchInput): string | undefined {
+  const text = [nativeText(input), input.native?.modifiers].join(' ')
+  if (text.includes('in:<#')) return undefined
+  return text.match(/(?:^|\s)in:#([\p{L}\p{M}\p{N}_.-]*[\p{L}\p{M}\p{N}_-])/iu)?.[1]?.toLowerCase()
+}
+
+/**
+ * Whether the channel a query filtered to exists, said when the query found nothing, since RTS
+ * returns the same empty page for a quiet channel and a name that matches no channel. A lookup
+ * that fails says nothing rather than failing the search.
+ */
+async function channelFilterNote(
+  client: NativeClient,
+  input: NativeSearchInput,
+  name: string,
+  channelTypes: string[]
+): Promise<string | undefined> {
+  const data = await client
+    .json('/api/assistant.search.context', {
+      body: {
+        query: name,
+        channel_types: channelTypes,
+        include_archived_channels: input.policy?.includeArchived ?? true,
+        content_types: ['channels'],
+        limit: SLACK_PAGE_SIZE,
+      },
+    })
+    .then(slackResult)
+    .catch((error: unknown) => {
+      if (input.signal?.aborted) throw error
+      return undefined
+    })
+  if (!data) {
+    recordSearchProviderSignal('slack.channel_lookup_failed')
+    return undefined
+  }
+  const channels = searchableChannels(data, input)
+  const named = channels.find((channel) => channel.name.toLowerCase() === name)
+  if (named) {
+    recordSearchProviderSignal('slack.channel_filter_exists')
+    return `${channelLabel(named)} exists; none of its messages matched this query and date window.`
+  }
+  /** A lookup with another page has not ruled the name out, so it only names what it found. */
+  const complete = !string(object(data.response_metadata).next_cursor)
+  recordSearchProviderSignal(
+    complete ? 'slack.channel_filter_missing' : 'slack.channel_filter_unresolved'
+  )
+  const similar = channels.slice(0, MAX_LISTED_CHANNELS).map(channelLabel).join(', ')
+  return joinMessages([
+    complete ? `No channel named #${name} can be searched here.` : '',
+    similar ? `Channels with similar names: ${similar}.` : '',
+  ])
+}
+
+/** Results one Real-time Search call returns at most. */
+const SLACK_PAGE_SIZE = 20
+/**
+ * Real-time Search pages a search aimed at Slack reads to fill its limit. Each page counts
+ * against the member's RTS rate limit of about 10 calls a minute.
+ */
+const MAX_SLACK_SEARCH_PAGES = 3
+/**
+ * Slack's `after:`/`before:` day modifiers are exclusive and read in the member's own zone
+ * (UTC-12 to UTC+14), so each is widened by two days; the exact `after`/`before` timestamps sent
+ * alongside still bound the results.
+ */
+const DAY_MODIFIER_MARGIN_MS = 2 * 86_400_000
+
+/** The UTC day, as `YYYY-MM-DD`, of an instant shifted by `offsetMs`. */
+const utcDay = (iso: string, offsetMs: number) =>
+  new Date(Date.parse(iso) + offsetMs).toISOString().slice(0, 10)
+
+/**
+ * A search across every source reads one page, so Slack shares the result list with the other
+ * sources. A Slack-scoped or native Slack search follows the cursor until it fills its limit.
+ * A later page that fails keeps the earlier pages and returns the cursor it could not read,
+ * unless the caller cancelled the search.
+ */
+export async function searchSlack(
+  client: NativeClient,
+  input: NativeSearchInput
+): Promise<NativePage> {
+  if (!input.scopes.includes('search:read.public'))
+    throw new NativeSearchError(
+      'reconnect',
+      'Reconnect your Slack account to grant permission to search.'
+    )
+  const pages = input.native || input.filters?.source === 'slack' ? MAX_SLACK_SEARCH_PAGES : 1
+  const first = await searchSlackPage(client, input, input.native?.cursor, input.limit)
+  const documents = [...first.documents]
+  let nextCursor = first.nextCursor
+  for (let page = 1; page < pages && nextCursor && documents.length < input.limit; page++) {
+    try {
+      const more = await searchSlackPage(client, input, nextCursor, input.limit - documents.length)
+      documents.push(...more.documents)
+      nextCursor = more.nextCursor
+    } catch (error) {
+      if (input.signal?.aborted) throw error
+      return {
+        documents,
+        nextCursor,
+        partial: true,
+        message: joinMessages([
+          first.message,
+          error instanceof NativeSearchError
+            ? error.message
+            : 'Slack could not return more results.',
+          'Continue with nextCursor for more.',
+        ]),
+      }
+    }
+  }
+  return { documents, nextCursor, message: first.message }
+}
+
+async function searchSlackPage(
+  client: NativeClient,
+  input: NativeSearchInput,
+  cursor: string | undefined,
+  limit: number
+): Promise<NativePage> {
+  const channels = [
+    ['public_channel', 'search:read.public'],
+    ['private_channel', 'search:read.private'],
+    ['mpim', 'search:read.mpim'],
+    ['im', 'search:read.im'],
+  ]
+    .filter(
+      ([type, scope]) =>
+        input.scopes.includes(scope) &&
+        (input.policy?.includeDirectMessages !== false || !['im', 'mpim'].includes(type))
+    )
+    .map(([type]) => type)
+  const dates = nativeDateBounds(input)
+  const dateModifiers = [
+    dates.start ? `after:${utcDay(dates.start, -DAY_MODIFIER_MARGIN_MS)}` : '',
+    dates.end ? `before:${utcDay(dates.end, DAY_MODIFIER_MARGIN_MS)}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const modifiers = [input.native?.modifiers, dateModifiers].filter(Boolean).join(' ')
+  /** Channels match on name, topic and purpose, so only a query with text lists them, once. */
+  const listChannels = Boolean(nativeText(input)) && !cursor
+  const data = slackResult(
+    await client.json('/api/assistant.search.context', {
+      body: {
+        query: [nativeText(input) || dateModifiers, input.native?.modifiers]
+          .filter(Boolean)
+          .join(' '),
+        channel_types: channels,
+        include_archived_channels: input.policy?.includeArchived ?? true,
+        content_types: [
+          'messages',
+          ...(input.scopes.includes('search:read.files') ? ['files'] : []),
+          ...(listChannels ? ['channels'] : []),
+        ],
+        include_context_messages: true,
+        limit: Math.min(limit, SLACK_PAGE_SIZE),
+        ...(dates.start ? { after: Math.floor(Date.parse(dates.start) / 1000) - 1 } : {}),
+        ...(dates.end ? { before: Math.ceil(Date.parse(dates.end) / 1000) } : {}),
+        ...(dateSortDirection(input.filters)
+          ? { sort: 'timestamp', sort_dir: dateSortDirection(input.filters) }
+          : {}),
+        ...(cursor ? { cursor } : {}),
+        ...(input.native?.termClauses ? { term_clauses: input.native.termClauses } : {}),
+        ...(modifiers ? { modifiers } : {}),
+        ...(input.native?.keywordOnly || !nativeText(input)
+          ? { disable_semantic_search: true }
+          : {}),
+      },
+    })
+  )
+  const messages = array(object(data.results).messages)
+  const users = new Map<string, string>()
+  for (const message of messages) {
+    const context = object(message.context_messages)
+    for (const [id, name] of [
+      [string(message.author_user_id), string(message.author_name)],
+      ...[...array(context.before), ...array(context.after)].map((m) => [
+        string(m.user_id),
+        string(m.author_name),
+      ]),
+    ])
+      if (id && name && !users.has(id)) users.set(id, name)
+  }
+  const documents = messages.map((message): NativeDocument => {
+    const context = object(message.context_messages)
+    const before = array(context.before)
+    const after = array(context.after)
+    /** Surrounding messages come from several people, so each line names its author. */
+    const line = (author: string, text: string) =>
+      before.length || after.length ? `${author || SLACK_MEMBER}: ${text}` : text
+    const contextLine = (m: Record<string, unknown>) => {
+      const contextText = slackPlainText(string(m.text) || string(m.content), users)
+      return (
+        contextText &&
+        line(string(m.author_name) || users.get(string(m.user_id)) || '', contextText)
+      )
+    }
+    const text = slackPlainText(string(message.content), users)
+    const ts = string(message.message_ts)
+    const timestamp = Number(ts) * 1000
+    return {
+      id: ts,
+      ...(string(message.thread_ts) ? { threadId: string(message.thread_ts) } : {}),
+      container: string(message.channel_id),
+      title: slackConversationName(string(message.channel_name), string(message.channel_id)),
+      containerName: slackConversationName(
+        string(message.channel_name),
+        string(message.channel_id)
+      ),
+      containerUrl: slackConversationUrl(string(message.permalink), string(message.channel_id)),
+      url: string(message.permalink),
+      content: [
+        ...before.map(contextLine),
+        text &&
+          line(
+            string(message.author_name) || users.get(string(message.author_user_id)) || '',
+            text
+          ),
+        ...after.map(contextLine),
+      ]
+        .filter(Boolean)
+        .join('\n'),
+      author: string(message.author_name),
+      ...(Number.isFinite(timestamp) && timestamp > 0
+        ? { modifiedAt: new Date(timestamp).toISOString() }
+        : {}),
+    }
+  })
+  for (const file of array(object(data.results).files)) {
+    const updated = Number(file.date_updated ?? file.date_created) * 1000
+    documents.push({
+      id: string(file.file_id),
+      kind: 'file',
+      title: string(file.title),
+      url: string(file.permalink),
+      content: slackFileHitContent(file, users),
+      author: string(file.author_name),
+      ...(Number.isFinite(updated) && updated > 0
+        ? { modifiedAt: new Date(updated).toISOString() }
+        : {}),
+    })
+  }
+  const listed = listChannels ? searchableChannels(data, input).slice(0, MAX_LISTED_CHANNELS) : []
+  if (listed.length) recordSearchProviderSignal('slack.channels_listed', listed.length)
+  const nextCursor = string(object(data.response_metadata).next_cursor) || undefined
+  /** Only a search with no result on any page can say what its channel filter matched. */
+  const filtered =
+    !documents.length && !cursor && !nextCursor ? filteredChannelName(input) : undefined
+  return {
+    documents,
+    nextCursor,
+    message: joinMessages([
+      `Slack RTS searches ${channels.join(', ')} with your user token. Semantic matching depends on your Slack plan; date ordering uses keyword retrieval. Message timestamps are posting dates; edits may not be reflected in date filtering.`,
+      listed.length ? `Channels matching the query: ${listed.map(channelLabel).join(', ')}.` : '',
+      filtered ? await channelFilterNote(client, input, filtered, channels) : '',
+    ]),
+  }
+}
+
+type SlackFileFormat = 'html' | 'plain' | 'pdf' | 'docx'
+
+/** How a file's full text can be read, or undefined when Slack offers only its preview. */
+function slackFileFormat(file: Record<string, unknown>): SlackFileFormat | undefined {
+  const mimetype = normalizeMimeType(string(file.mimetype))
+  if (
+    string(file.filetype) === 'quip' ||
+    mimetype === 'application/vnd.slack-docs' ||
+    mimetype === 'text/html'
+  )
+    return 'html'
+  if (mimetype.startsWith('text/') || mimetype === 'application/json') return 'plain'
+  return documentExtension(mimetype)
+}
+
+/** Whether a read downloads a file of this size; an unreported size is tried and capped while reading. */
+function withinDownloadLimit(format: SlackFileFormat, size: unknown): boolean {
+  return !(Number(size) > MAX_FILE_DOWNLOAD_BYTES[format])
+}
+
+const SLACK_FILE_LABELS: Readonly<Record<string, string>> = {
+  'application/vnd.slack-docs': 'Canvas',
+  'application/vnd.slack-list': 'List',
+}
+
+/** The shared label for a known type; a title is not a filename, so it never supplies one. */
+function knownFileLabel(mimetype: string): string {
+  const label = fileBrowserTypeLabel(mimetype, '')
+  return label && label !== mimetype ? label : 'File'
+}
+
+/**
+ * Slack search returns only a file's title, repeated as its content. A hit says what the file is
+ * and whether reading it can return its text, so a reader can tell which files to open.
+ */
+function slackFileHitContent(file: Record<string, unknown>, users: Map<string, string>): string {
+  const mimetype = normalizeMimeType(string(file.file_type))
+  const summary = [
+    SLACK_FILE_LABELS[mimetype] ?? knownFileLabel(mimetype),
+    typeof file.size === 'number' && file.size >= 0
+      ? formatFileSize(file.size, { includeBytes: true })
+      : '',
+  ]
+    .filter(Boolean)
+    .join(', ')
+  const format = slackFileFormat({ mimetype })
+  const reading = !format
+    ? 'Its contents cannot be read here; open the source.'
+    : file.size === 0
+      ? 'The file is empty.'
+      : withinDownloadLimit(format, file.size)
+        ? 'Reading it can return its full text.'
+        : 'Too large to read in full here; open the source.'
+  const text = slackPlainText(string(file.content), users)
+  return [`${summary}. ${reading}`, text === string(file.title) ? '' : text]
+    .filter(Boolean)
+    .join('\n')
+}
+
+const BYTE_ORDER_MARKS = [
+  [[0xef, 0xbb, 0xbf], 'utf-8'],
+  [[0xff, 0xfe], 'utf-16le'],
+  [[0xfe, 0xff], 'utf-16be'],
+] as const
+
+/**
+ * Decodes downloaded text strictly: a byte-order mark wins, then the declared charset, then UTF-8.
+ * Bytes invalid in that charset, or text holding NULs (UTF-16 without a mark), are unreadable.
+ */
+function decodeFileText(bytes: Buffer, mimetype: string): string | undefined {
+  const charset = /;\s*charset="?([\w.:-]+)"?/i.exec(mimetype)?.[1]
+  const label =
+    BYTE_ORDER_MARKS.find(([mark]) => mark.every((byte, index) => bytes[index] === byte))?.[1] ??
+    charset ??
+    'utf-8'
+  let text: string
+  try {
+    text = new TextDecoder(label, { fatal: true }).decode(bytes)
+  } catch {
+    return undefined
+  }
+  return text.includes('\u0000') ? undefined : text
+}
+
+/**
+ * The full text of a file Slack hosts: canvases as HTML, snippets and text files as text, PDF and
+ * DOCX extracted, from Slack's download URL when it has one. The token only goes to Slack's file
+ * host. Short of the caller aborting, any failure (denial, redirect, size limit, unreadable bytes,
+ * slow download) leaves the read with its preview and a reason when one applies.
+ */
+async function slackFileText(
+  client: NativeClient,
+  file: Record<string, unknown>,
+  signal?: AbortSignal
+): Promise<{ text: string } | { unavailable?: string }> {
+  const format = slackFileFormat(file)
+  if (!format || !withinDownloadLimit(format, file.size)) return {}
+  const source = slackFileDownloadUrl(file)
+  if (!source) return {}
+  const timeout = AbortSignal.timeout(FILE_DOWNLOAD_TIMEOUT_MS)
+  const download = signal ? AbortSignal.any([signal, timeout]) : timeout
+  const request = { service: 'slackFiles', signal: download } as const
+  const query = Object.fromEntries(source.searchParams)
+  try {
+    const bytes = await client.bytes(source.pathname, query, request)
+    if (format === 'pdf' || format === 'docx')
+      return { text: await extractDocumentText(bytes, format, download) }
+    const decoded = decodeFileText(bytes, string(file.mimetype))
+    const text = decoded && providerText(decoded, format)
+    return text && Buffer.byteLength(text, 'utf8') <= MAX_FILE_TEXT_BYTES ? { text } : {}
+  } catch (error) {
+    signal?.throwIfAborted()
+    if (!(error instanceof NativeSearchError)) return {}
+    // files.info already accepted this token, so reconnecting would not change a refused file.
+    return {
+      unavailable:
+        error.status === 'reconnect' && (error.httpStatus === 401 || error.httpStatus === 403)
+          ? "Slack did not serve this file's contents to your account. Open the source."
+          : error.message,
+    }
+  }
+}
+
+export async function readSlack(
+  client: NativeClient,
+  id: string,
+  channel?: string,
+  kind?: string,
+  threadId?: string,
+  signal?: AbortSignal
+): Promise<NativeDocument> {
+  if (kind === 'file') {
+    if (!/^F[A-Z0-9]+$/.test(id))
+      throw new NativeSearchError('unavailable', 'Invalid Slack file reference.')
+    const data = slackResult(await client.json('/api/files.info', { query: { file: id } }))
+    const file = object(data.file)
+    const full = await slackFileText(client, file, signal)
+    if (!('text' in full)) recordSearchProviderSignal('slack.file_preview')
+    return {
+      id,
+      kind,
+      title: string(file.title),
+      url: string(file.permalink),
+      content:
+        'text' in full
+          ? full.text
+          : [
+              full.unavailable && `Full text unavailable: ${full.unavailable}`,
+              `File preview (open the source for full contents):\n${string(file.preview_plain_text) || string(file.preview) || string(file.title)}`,
+            ]
+              .filter(Boolean)
+              .join('\n\n'),
+    }
+  }
+  if (
+    !channel ||
+    !/^\d+\.\d+$/.test(id) ||
+    (threadId && !/^\d+\.\d+$/.test(threadId)) ||
+    !/^[A-Z0-9]+$/.test(channel)
+  )
+    throw new NativeSearchError('unavailable', 'Invalid Slack message reference.')
+  const data = slackResult(
+    await client.json('/api/conversations.replies', {
+      query: {
+        channel,
+        ts: threadId ?? id,
+        limit: '100',
+        ...(threadId && threadId !== id ? { oldest: id, inclusive: 'true' } : {}),
+      },
+    })
+  )
+  if (
+    array(data.messages).length === 0 ||
+    (threadId && !array(data.messages).some((message) => string(message.ts) === id))
+  )
+    throw new NativeSearchError('unavailable', 'The message is no longer accessible.')
+  const [link, authors] = await Promise.all([
+    client.json('/api/chat.getPermalink', { query: { channel, message_ts: id } }).then(slackResult),
+    slackAuthorNames(client, array(data.messages)),
+  ])
+  return {
+    id,
+    container: channel,
+    threadId,
+    title: 'Slack conversation',
+    containerName: 'Slack conversation',
+    containerUrl: slackConversationUrl(string(link.permalink), channel),
+    url: string(link.permalink),
+    modifiedAt: new Date(Number(id) * 1000).toISOString(),
+    content:
+      array(data.messages)
+        .map(
+          (m) =>
+            `${authors.get(string(m.user)) || string(m.username) || SLACK_MEMBER}: ${slackPlainText(string(m.text), authors)}`
+        )
+        .join('\n') +
+      (data.has_more ? '\n[Thread continues; open the source for the remaining messages.]' : ''),
+  }
+}
+
+/**
+ * Names the authors of read messages. conversations.replies identifies them only by user ID,
+ * so names come from an embedded profile when present, else users.info (users:read). A name
+ * that cannot be looked up keeps the generic label rather than failing the read.
+ */
+async function slackAuthorNames(
+  client: NativeClient,
+  messages: Record<string, unknown>[]
+): Promise<Map<string, string>> {
+  const names = new Map<string, string>()
+  for (const message of messages) {
+    const profile = object(message.user_profile)
+    const name = string(profile.display_name) || string(profile.real_name)
+    if (string(message.user) && name) names.set(string(message.user), name)
+  }
+  const unresolved = [
+    ...new Set(messages.map((message) => string(message.user)).filter(Boolean)),
+  ].filter((user) => !names.has(user))
+  await Promise.all(
+    unresolved.slice(0, MAX_AUTHOR_LOOKUPS).map(async (user) => {
+      const data = object(
+        await client.json('/api/users.info', { query: { user } }).catch((error: unknown) => {
+          if (error instanceof NativeSearchError) return undefined
+          throw error
+        })
+      )
+      const profile = object(object(data.user).profile)
+      const name =
+        data.ok === true &&
+        (string(profile.display_name) ||
+          string(profile.real_name) ||
+          string(object(data.user).real_name))
+      if (name) names.set(user, name)
+    })
+  )
+  return names
+}

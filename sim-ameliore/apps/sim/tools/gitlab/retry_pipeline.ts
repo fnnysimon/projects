@@ -1,0 +1,82 @@
+import type { GitLabRetryPipelineParams, GitLabRetryPipelineResponse } from '@/tools/gitlab/types'
+import { encodeGitLabResourceId, getGitLabApiBase } from '@/tools/gitlab/utils'
+import { GITLAB_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const gitlabRetryPipelineTool: ToolConfig<
+  GitLabRetryPipelineParams,
+  GitLabRetryPipelineResponse
+> = {
+  id: 'gitlab_retry_pipeline',
+  personalToken: { provider: 'gitlab', tokenParam: 'accessToken', hostParam: 'host' },
+  name: 'GitLab Retry Pipeline',
+  description: 'Retry a failed GitLab pipeline',
+  version: '1.0.0',
+  oauth: GITLAB_CREDENTIAL_OAUTH,
+
+  params: {
+    accessToken: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'GitLab Personal Access Token',
+    },
+    host: {
+      type: 'string',
+      required: false,
+      visibility: 'user-only',
+      description: 'Self-managed GitLab host (e.g. gitlab.example.com). Defaults to gitlab.com.',
+    },
+    projectId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Project ID or path (e.g. mygroup/myproject)',
+    },
+    pipelineId: {
+      type: 'number',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Pipeline ID',
+    },
+  },
+
+  request: {
+    url: (params) => {
+      const encodedId = encodeGitLabResourceId(params.projectId)
+      return `${getGitLabApiBase(params.host)}/projects/${encodedId}/pipelines/${safeUrlPathSegment(params.pipelineId, 'pipelineId')}/retry`
+    },
+    method: 'POST',
+    headers: (params) => ({
+      'PRIVATE-TOKEN': params.accessToken,
+    }),
+  },
+
+  transformResponse: async (response) => {
+    if (!response.ok) {
+      const errorText = await response.text()
+      return {
+        success: false,
+        error: `GitLab API error: ${response.status} ${errorText}`,
+        output: {},
+      }
+    }
+
+    const pipeline = await response.json()
+
+    return {
+      success: true,
+      output: {
+        pipeline,
+      },
+    }
+  },
+
+  outputs: {
+    pipeline: {
+      type: 'object',
+      description: 'The retried GitLab pipeline',
+    },
+  },
+}

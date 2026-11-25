@@ -1,0 +1,905 @@
+"""Combined Presidio REST service: analyzer + anonymizer on one port.
+
+Constructs one warm AnalyzerEngine (5 large spaCy models for NER +
+regex/checksum pattern recognizers, incl. a native check-digit VIN recognizer)
+and one AnonymizerEngine at startup, exposing stock-compatible endpoints so a
+single PII_URL serves both.
+"""
+
+import json
+import logging
+import threading
+import time
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager, nullcontext
+from typing import Any
+
+import regex as regex_module
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from presidio_analyzer import (
+    AnalyzerEngine,
+    BatchAnalyzerEngine,
+    Pattern,
+    PatternRecognizer,
+    RecognizerResult,
+)
+from presidio_analyzer.nlp_engine import NlpEngineProvider
+from presidio_analyzer.predefined_recognizers import (
+    AuAbnRecognizer,
+    AuAcnRecognizer,
+    AuMedicareRecognizer,
+    AuTfnRecognizer,
+    EsNieRecognizer,
+    EsNifRecognizer,
+    FiPersonalIdentityCodeRecognizer,
+    InAadhaarRecognizer,
+    InPanRecognizer,
+    InPassportRecognizer,
+    InVehicleRegistrationRecognizer,
+    InVoterRecognizer,
+    ItDriverLicenseRecognizer,
+    ItFiscalCodeRecognizer,
+    ItIdentityCardRecognizer,
+    ItPassportRecognizer,
+    ItVatCodeRecognizer,
+    PlPeselRecognizer,
+    SgFinRecognizer,
+    SgUenRecognizer,
+    SpacyRecognizer,
+    UkNinoRecognizer,
+)
+from presidio_anonymizer import AnonymizerEngine
+from presidio_anonymizer.entities import OperatorConfig
+from pydantic import BaseModel, model_validator
+from spacy.tokenizer import Tokenizer
+from spacy.tokens import Doc
+
+# Languages served. Each needs its spaCy model installed in the image; the
+# es/it/pl/fi predefined recognizers (ES_NIF, IT_FISCAL_CODE, PL_PESEL, ...)
+# auto-load once their NLP engine is present.
+NLP_CONFIGURATION = {
+    "nlp_engine_name": "spacy",
+    "models": [
+        {"lang_code": "en", "model_name": "en_core_web_lg"},
+        {"lang_code": "es", "model_name": "es_core_news_lg"},
+        {"lang_code": "it", "model_name": "it_core_news_lg"},
+        {"lang_code": "pl", "model_name": "pl_core_news_lg"},
+        {"lang_code": "fi", "model_name": "fi_core_news_lg"},
+    ],
+}
+SUPPORTED_LANGUAGES = [m["lang_code"] for m in NLP_CONFIGURATION["models"]]
+
+# spaCy pipeline components PII detection does not use. NER depends only on
+# `tok2vec` + `ner`; the parser (the most expensive stage), tagger, morphologizer,
+# attribute_ruler and lemmatizer are dead weight here. Disabling them is a ~2x
+# throughput win with NO change to the detected entities. The only side effect is
+# that Presidio's lemma-based context score-boosting weakens slightly — an
+# acceptable trade for the speed on this CPU-bound service.
+NER_ONLY_DISABLE = ("parser", "tagger", "morphologizer", "attribute_ruler", "lemmatizer")
+
+# Predefined recognizers Presidio ships but does NOT load into the default
+# registry — they must be added explicitly. Each carries its own
+# supported_language, so it fires under that language once its NLP model is
+# loaded. en: UK/AU/IN/SG locale ids; es/it/pl/fi: national ids.
+EXTRA_RECOGNIZERS = [
+    UkNinoRecognizer,
+    AuAbnRecognizer,
+    AuAcnRecognizer,
+    AuTfnRecognizer,
+    AuMedicareRecognizer,
+    InPanRecognizer,
+    InAadhaarRecognizer,
+    InVehicleRegistrationRecognizer,
+    InVoterRecognizer,
+    InPassportRecognizer,
+    SgFinRecognizer,
+    SgUenRecognizer,
+    EsNifRecognizer,
+    EsNieRecognizer,
+    ItFiscalCodeRecognizer,
+    ItDriverLicenseRecognizer,
+    ItVatCodeRecognizer,
+    ItPassportRecognizer,
+    ItIdentityCardRecognizer,
+    PlPeselRecognizer,
+    FiPersonalIdentityCodeRecognizer,
+]
+
+
+class VinRecognizer(PatternRecognizer):
+    """VIN (17 chars, A-Z/0-9 excluding I/O/Q) with ISO 3779 check-digit
+    validation (position 9). Validation makes accidental matches on arbitrary
+    17-char codes (request ids, SKUs, tokens) extremely unlikely. Some
+    non-North-American VINs omit the check digit and are skipped — an
+    intentional bias toward precision.
+    """
+
+    _TRANSLIT = {
+        **{str(d): d for d in range(10)},
+        "A": 1, "B": 2, "C": 3, "D": 4, "E": 5, "F": 6, "G": 7, "H": 8,
+        "J": 1, "K": 2, "L": 3, "M": 4, "N": 5, "P": 7, "R": 9,
+        "S": 2, "T": 3, "U": 4, "V": 5, "W": 6, "X": 7, "Y": 8, "Z": 9,
+    }
+    _WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2]
+
+    def validate_result(self, pattern_text: str):
+        vin = pattern_text.upper()
+        if len(vin) != 17:
+            return False
+        try:
+            total = sum(self._TRANSLIT[c] * w for c, w in zip(vin, self._WEIGHTS))
+        except KeyError:
+            return False
+        check = total % 11
+        expected = "X" if check == 10 else str(check)
+        return vin[8] == expected
+
+
+def _register_common_recognizers(analyzer: AnalyzerEngine) -> None:
+    """Regex/checksum recognizers on top of spaCy NER + the Presidio defaults."""
+    # VIN is language-agnostic, so register it under every served language —
+    # a recognizer only fires for the language the caller routes to.
+    vin_pattern = Pattern(name="vin", regex=r"\b[A-HJ-NPR-Z0-9]{17}\b", score=0.7)
+    for language in SUPPORTED_LANGUAGES:
+        analyzer.registry.add_recognizer(
+            VinRecognizer(
+                supported_entity="VIN",
+                patterns=[vin_pattern],
+                context=["vin", "vehicle", "chassis"],
+                supported_language=language,
+            )
+        )
+    for recognizer_cls in EXTRA_RECOGNIZERS:
+        analyzer.registry.add_recognizer(recognizer_cls())
+
+
+# spaCy's tokenizer peels a whitespace-free run one prefix or suffix at a time and
+# searches the whole run again for each, so a long run such as minified JSON costs
+# time quadratic in its length (about 4.5s for a 100,000-character array of small
+# objects). That work holds the GIL throughout, so the worker misses uvicorn's 5s
+# health ping and is killed with every request it is serving. A run at least this
+# long is instead split in linear time into single symbols and words, keeping
+# word characters joined by `.`, `,` or `:` together as spaCy does (`1,2,3`,
+# `example.com`) so NER does not read each piece of a number as its own entity.
+# Shorter runs tokenize as before.
+TOKENIZER_RUN_CHARS = 100
+_LONG_RUN = regex_module.compile(rf"(?<!\S)\S{{{TOKENIZER_RUN_CHARS},}}")
+_RUN_PIECE = regex_module.compile(r"\w+(?:[.,:]\w+)*|\W")
+
+
+class LongRunTokenizer:
+    """spaCy tokenizer that splits runs of TOKENIZER_RUN_CHARS or more non-space
+    characters in linear time and leaves the rest to spaCy's own tokenizer. The
+    Doc's text is the input unchanged, because Presidio runs its pattern
+    recognizers on `doc.text`."""
+
+    def __init__(self, tokenizer: Tokenizer) -> None:
+        self.tokenizer = tokenizer
+
+    def __call__(self, text: str) -> Doc:
+        if not _LONG_RUN.search(text):
+            return self.tokenizer(text)
+        words: list[str] = []
+        spaces: list[bool] = []
+        start = 0
+        for run in _LONG_RUN.finditer(text):
+            self._tokenize_into(text[start : run.start()], words, spaces)
+            pieces = _RUN_PIECE.findall(run.group())
+            words.extend(pieces)
+            spaces.extend([False] * len(pieces))
+            start = run.end()
+            # spaCy attaches one following space to the token before it.
+            if text.startswith(" ", start):
+                spaces[-1] = True
+                start += 1
+        self._tokenize_into(text[start:], words, spaces)
+        return Doc(self.tokenizer.vocab, words=words, spaces=spaces)
+
+    def _tokenize_into(self, text: str, words: list[str], spaces: list[bool]) -> None:
+        for token in self.tokenizer(text):
+            words.append(token.text)
+            spaces.append(bool(token.whitespace_))
+
+
+def build_analyzer() -> AnalyzerEngine:
+    nlp_engine = NlpEngineProvider(nlp_configuration=NLP_CONFIGURATION).create_engine()
+    for nlp in getattr(nlp_engine, "nlp", {}).values():
+        for pipe in NER_ONLY_DISABLE:
+            if pipe in nlp.pipe_names:
+                nlp.disable_pipe(pipe)
+        nlp.tokenizer = LongRunTokenizer(nlp.tokenizer)
+    analyzer = AnalyzerEngine(nlp_engine=nlp_engine, supported_languages=SUPPORTED_LANGUAGES)
+    _register_common_recognizers(analyzer)
+    return analyzer
+
+
+# Own handler at INFO. uvicorn configures only its own loggers, not the root, so a
+# bare getLogger propagates to a handler-less root at the default WARNING level and
+# every info() (the per-request timing lines) is silently dropped. Attach a stream
+# handler directly and stop propagation so timing lands in the container log stream
+# regardless of uvicorn's config or worker count.
+logger = logging.getLogger("sim.pii")
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    _log_handler = logging.StreamHandler()
+    _log_handler.setFormatter(logging.Formatter("%(levelname)s: %(name)s: %(message)s"))
+    logger.addHandler(_log_handler)
+    logger.propagate = False
+
+# Built per worker by `lifespan`, never at import: with --workers N the uvicorn
+# supervisor imports this module too, and a module-level build left it holding an
+# idle copy of every model.
+analyzer: AnalyzerEngine
+batch_analyzer: BatchAnalyzerEngine
+anonymizer: AnonymizerEngine
+NER_ENTITIES: frozenset
+_BLANK_ARTIFACTS: dict
+
+# Every entity the spaCy NER recognizers can actually produce. A request touching
+# any of these must run spaCy; a request naming only non-NER (regex/checksum)
+# entities can skip it. The registry's SpacyRecognizers CLAIM every entity in
+# Presidio's default NER-model mapping — including PHONE_NUMBER/AGE/ID/EMAIL,
+# which exist for transformer models and which no spaCy model can emit — so the
+# claimed set is intersected with the entities the loaded models' NER labels map
+# onto. Without that filter, selecting PHONE_NUMBER (present in nearly every
+# redaction rule) silently forces the full spaCy pass and the regex-only fast
+# path never fires. The floor guarantees the core NER entities always take the
+# full pass even if label introspection ever derives empty.
+_SPACY_NER_FLOOR = frozenset({"PERSON", "LOCATION", "NRP", "DATE_TIME", "ORGANIZATION"})
+
+
+def _producible_ner_entities() -> frozenset:
+    """Presidio entities some loaded spaCy model's NER labels map onto."""
+    configuration = getattr(analyzer.nlp_engine, "ner_model_configuration", None)
+    mapping = configuration.model_to_presidio_entity_mapping if configuration else {}
+    producible = set()
+    for nlp in getattr(analyzer.nlp_engine, "nlp", {}).values():
+        if "ner" not in nlp.pipe_names:
+            continue
+        for label in nlp.get_pipe("ner").labels:
+            entity = mapping.get(label)
+            if entity:
+                producible.add(entity)
+    return frozenset(producible)
+
+
+
+def _regex_only(entities: list[str] | None, score_threshold: float | None) -> bool:
+    """True when the spaCy NLP pass can be skipped: the request names entities, none
+    require spaCy NER, and no positive score_threshold is set. The blank-artifacts
+    fast path drops context-based score boosting, which can only change what is
+    returned when a threshold gates a match between its base and context-boosted
+    score — so fall back to the full path whenever a threshold is in play."""
+    return (
+        bool(entities)
+        and NER_ENTITIES.isdisjoint(entities)
+        and (score_threshold is None or score_threshold <= 0)
+    )
+
+
+# A text longer than this runs NER in windows of this many characters, following
+# spaCy's guidance to segment long documents. One NER pass costs memory that grows
+# with the text's length (about 3GB for 900,000 characters), enough to get a worker
+# OOM-killed, so no pass sees more than one window. That also keeps every pass under
+# spaCy's `max_length`, which it refuses with error E088.
+NER_WINDOW_CHARS = 100_000
+# How much of the previous window each window repeats. Far longer than any entity
+# spaCy tags, so an entity cut by one window's edge lies whole inside the next.
+NER_WINDOW_OVERLAP = 1_000
+
+# One NER pass (a batch, a short text, or one window) at a time per worker. FastAPI
+# runs these sync endpoints on a threadpool, so without it a worker runs one pass per
+# request in flight and their memory adds up until it is OOM-killed. A long text
+# takes it per window, so it interleaves with other requests. Regex-only requests
+# never take it.
+_NER_SLOT = threading.Lock()
+
+
+def _window_entities(
+    entities: list[str] | None, language: str, score_threshold: float | None
+) -> list[str]:
+    """The requested built-in entities this language serves that windows must find,
+    or all of them when `entities` is empty (detect-all). Without a score_threshold
+    that is only what spaCy NER produces; with one it also includes the pattern
+    entities, whose context-boosted score can decide whether a match clears the
+    threshold and needs the real NLP artifacts only a window has."""
+    served = set(analyzer.get_supported_entities(language))
+    if score_threshold is None or score_threshold <= 0:
+        served &= NER_ENTITIES
+    return sorted(served if not entities else served.intersection(entities))
+
+
+def _analyze_long(
+    text: str,
+    language: str,
+    entities: list[str] | None,
+    score_threshold: float | None,
+    return_decision_process: bool = False,
+    ad_hoc_recognizers: list[PatternRecognizer] | None = None,
+) -> list[RecognizerResult]:
+    """Analyze a text longer than NER_WINDOW_CHARS.
+
+    Pattern, checksum, and custom recognizers have no length limit, so they run
+    once over the whole text (against blank NLP artifacts, as the regex-only path
+    does) and no match can straddle a cut. Only NER runs in overlapping windows
+    (see NER_WINDOW_CHARS), asked for just its own entities, plus the pattern
+    entities when a score_threshold makes context scoring matter (see
+    `_window_entities`). Every window's spans are kept, shifted to whole-text
+    offsets: NER reads context, so a window can find a name its neighbour missed
+    or cut short. A span found more than once keeps its highest score, and
+    overlapping spans of one type are merged by the anonymizer."""
+    entities = entities or None
+    results = analyzer.analyze(
+        text=text,
+        language=language,
+        entities=entities,
+        score_threshold=score_threshold,
+        return_decision_process=return_decision_process,
+        nlp_artifacts=_BLANK_ARTIFACTS.get(language),
+        ad_hoc_recognizers=ad_hoc_recognizers or None,
+    )
+    window_entities = _window_entities(entities, language, score_threshold)
+    if not window_entities:
+        return results
+    step = NER_WINDOW_CHARS - NER_WINDOW_OVERLAP
+    for start in range(0, len(text), step):
+        with _NER_SLOT:
+            window_results = analyzer.analyze(
+                text=text[start : start + NER_WINDOW_CHARS],
+                language=language,
+                entities=window_entities,
+                score_threshold=score_threshold,
+                return_decision_process=return_decision_process,
+            )
+        for result in window_results:
+            results.append(
+                RecognizerResult(
+                    result.entity_type,
+                    result.start + start,
+                    result.end + start,
+                    result.score,
+                    result.analysis_explanation,
+                    result.recognition_metadata,
+                )
+            )
+        if start + NER_WINDOW_CHARS >= len(text):
+            break
+    unique: dict[tuple[str, int, int], RecognizerResult] = {}
+    for result in results:
+        key = (result.entity_type, result.start, result.end)
+        if key not in unique or result.score > unique[key].score:
+            unique[key] = result
+    return list(unique.values())
+
+
+def _analyze_one(
+    text: str,
+    language: str,
+    entities: list[str] | None,
+    score_threshold: float | None,
+    return_decision_process: bool = False,
+    ad_hoc_recognizers: list[PatternRecognizer] | None = None,
+):
+    regex_only = _regex_only(entities, score_threshold)
+    if not regex_only and len(text) > NER_WINDOW_CHARS:
+        return _analyze_long(
+            text, language, entities, score_threshold, return_decision_process, ad_hoc_recognizers
+        )
+    # Regex-only requests reuse a blank NlpArtifacts to skip the spaCy NLP pass;
+    # otherwise analyze() computes artifacts (runs spaCy) as usual. Custom-pattern
+    # recognizers are regex-based, so they run fine against the blank artifacts.
+    nlp_artifacts = _BLANK_ARTIFACTS.get(language) if regex_only else None
+    with nullcontext() if regex_only else _NER_SLOT:
+        return analyzer.analyze(
+            text=text,
+            language=language,
+            entities=entities or None,
+            score_threshold=score_threshold,
+            return_decision_process=return_decision_process,
+            nlp_artifacts=nlp_artifacts,
+            ad_hoc_recognizers=ad_hoc_recognizers or None,
+        )
+
+
+# Presidio's BatchAnalyzerEngine defaults nlp.pipe to batch_size=1, so a 2000-text
+# request runs 2000 separate spaCy forward passes.
+NLP_BATCH_SIZE = 256
+
+
+def _analyze_many(
+    texts: list[str],
+    language: str,
+    entities: list[str] | None,
+    score_threshold: float | None,
+    ad_hoc_recognizers: list[PatternRecognizer] | None = None,
+):
+    """Analyze many texts, skipping the spaCy pass for regex-only requests. A text
+    longer than NER_WINDOW_CHARS is analyzed on its own (see `_analyze_long`); the
+    rest share NER passes of at most NER_WINDOW_CHARS in total, since a batched pass
+    costs memory for every character in it, like one long text."""
+    if _regex_only(entities, score_threshold):
+        blank = _BLANK_ARTIFACTS.get(language)
+        return [
+            analyzer.analyze(
+                text=text,
+                language=language,
+                entities=entities,
+                score_threshold=score_threshold,
+                nlp_artifacts=blank,
+                ad_hoc_recognizers=ad_hoc_recognizers or None,
+            )
+            for text in texts
+        ]
+    long_indices: list[int] = []
+    batches: list[list[int]] = []
+    batch_chars = 0
+    for i, text in enumerate(texts):
+        if len(text) > NER_WINDOW_CHARS:
+            long_indices.append(i)
+            continue
+        if not batches or batch_chars + len(text) > NER_WINDOW_CHARS:
+            batches.append([])
+            batch_chars = 0
+        batches[-1].append(i)
+        batch_chars += len(text)
+    results: list[list[RecognizerResult]] = [[] for _ in texts]
+    for batch in batches:
+        with _NER_SLOT:
+            batch_results = batch_analyzer.analyze_iterator(
+                texts=[texts[i] for i in batch],
+                language=language,
+                batch_size=NLP_BATCH_SIZE,
+                entities=entities or None,
+                score_threshold=score_threshold,
+                ad_hoc_recognizers=ad_hoc_recognizers or None,
+            )
+            for i, per_text in zip(batch, batch_results):
+                results[i] = list(per_text)
+    for i in long_indices:
+        results[i] = _analyze_long(
+            texts[i], language, entities, score_threshold, ad_hoc_recognizers=ad_hoc_recognizers
+        )
+    return results
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    global analyzer, batch_analyzer, anonymizer, NER_ENTITIES, _BLANK_ARTIFACTS
+    logger.info("building analyzer (spacy)")
+    analyzer = build_analyzer()
+    batch_analyzer = BatchAnalyzerEngine(analyzer_engine=analyzer)
+    anonymizer = AnonymizerEngine()
+    NER_ENTITIES = _SPACY_NER_FLOOR | (
+        frozenset(
+            entity
+            for recognizer in analyzer.registry.recognizers
+            if isinstance(recognizer, SpacyRecognizer)
+            for entity in recognizer.supported_entities
+        )
+        & _producible_ner_entities()
+    )
+    # One blank NlpArtifacts per language, built once at startup. Passing these to
+    # analyze() skips nlp_engine.process_text (the spaCy tok2vec+ner pass) entirely:
+    # the pattern recognizers still match on the raw text, SpacyRecognizer finds
+    # nothing in blank artifacts (and can only be consulted at all for claimed-but-
+    # unproducible entities like PHONE_NUMBER), and score_threshold is unset so
+    # detection is identical.
+    # Only context-based score boosting (which needs real tokens) is unavailable — an
+    # accepted trade for skipping NER on the hot block-output path. Read-only, so it
+    # is safe to share across requests.
+    _BLANK_ARTIFACTS = {
+        language: analyzer.nlp_engine.process_text("", language)
+        for language in SUPPORTED_LANGUAGES
+    }
+    yield
+
+
+app = FastAPI(title="Sim Presidio", docs_url=None, redoc_url=None, lifespan=lifespan)
+
+
+@app.exception_handler(RequestValidationError)
+async def request_validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
+    """422 without FastAPI's echo of each offending input value, which would copy
+    request text (possibly PII) into the error."""
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [
+                {
+                    "loc": list(error.get("loc", ())),
+                    "msg": error.get("msg", ""),
+                    "type": error.get("type", ""),
+                }
+                for error in exc.errors()
+            ]
+        },
+    )
+
+
+class RequestModel(BaseModel):
+    """Base for every request body. JSON can carry an escaped unpaired UTF-16
+    surrogate that decodes into a str with no UTF-8 encoding; echoing it in the
+    response would fail as an opaque 500, so reject it up front as a 422."""
+
+    @model_validator(mode="before")
+    @classmethod
+    def _require_utf8_encodable(cls, data: Any) -> Any:
+        try:
+            json.dumps(data, ensure_ascii=False).encode("utf-8")
+        except UnicodeEncodeError:
+            raise ValueError("body contains an unpaired surrogate") from None
+        return data
+
+
+# Internal entity id assigned to the i-th user-supplied custom pattern. Never
+# surfaced: the anonymizer maps it back to the pattern's chosen `replacement`, and
+# callers relabel any leftover CUSTOM_<i> span to the pattern's display name.
+CUSTOM_ENTITY_PREFIX = "CUSTOM_"
+
+
+class CustomPattern(BaseModel):
+    """A user-supplied regex pattern. Matches are replaced with `replacement`,
+    wrapped in angle brackets (see `_wrap_token`)."""
+
+    regex: str
+    replacement: str = ""
+    name: str = ""
+
+
+def _wrap_token(replacement: str) -> str:
+    """Wrap the redaction token in angle brackets so custom matches read like the
+    built-in Presidio tokens (`<PERSON>`, `<EMAIL_ADDRESS>`). A value the user
+    already bracketed is left as-is so it never double-wraps to `<<X>>`."""
+    if len(replacement) >= 2 and replacement.startswith("<") and replacement.endswith(">"):
+        return replacement
+    return f"<{replacement}>"
+
+
+def custom_operators(patterns: list[CustomPattern] | None) -> dict[str, dict[str, Any]]:
+    """Raw replace-operator per custom pattern, keyed by its internal entity id."""
+    return {
+        f"{CUSTOM_ENTITY_PREFIX}{i}": {"type": "replace", "new_value": _wrap_token(p.replacement)}
+        for i, p in enumerate(patterns or [])
+    }
+
+
+# Seconds one request may spend matching its custom patterns, summed over every
+# pattern and text. REGEX_TIMEOUT_SECONDS bounds only one pattern on one text, so
+# without this a batch could cost texts x patterns x that timeout.
+CUSTOM_PATTERN_BUDGET_SECONDS = 60
+
+
+class _MatchBudget:
+    """Custom-pattern matching seconds left for one request, shared by its
+    recognizers. A request is analyzed on a single thread, so no lock is needed."""
+
+    def __init__(self, seconds: float) -> None:
+        self.remaining = seconds
+
+
+class BudgetedPatternRecognizer(PatternRecognizer):
+    """Custom-pattern recognizer that charges its matching time to the request's
+    budget and fails the request with a 400 once the budget is spent."""
+
+    def __init__(self, budget: _MatchBudget, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._budget = budget
+
+    def analyze(self, *args: Any, **kwargs: Any) -> list[RecognizerResult]:
+        started = time.perf_counter()
+        results = super().analyze(*args, **kwargs)
+        self._budget.remaining -= time.perf_counter() - started
+        if self._budget.remaining < 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Custom patterns exceeded the {CUSTOM_PATTERN_BUDGET_SECONDS}s "
+                "matching budget for this request",
+            )
+        return results
+
+
+def build_custom_recognizers(
+    patterns: list[CustomPattern] | None, language: str
+) -> tuple[list[PatternRecognizer], list[str]]:
+    """Ad-hoc PatternRecognizers + their entity ids for the given custom patterns.
+
+    Each regex is precompiled so a malformed pattern fails fast as a 400 rather
+    than surfacing later as an opaque analyze-time 500."""
+    budget = _MatchBudget(CUSTOM_PATTERN_BUDGET_SECONDS)
+    recognizers: list[PatternRecognizer] = []
+    entity_ids: list[str] = []
+    for i, p in enumerate(patterns or []):
+        try:
+            regex_module.compile(p.regex)
+        except regex_module.error as exc:
+            raise HTTPException(
+                status_code=400, detail=f"Invalid custom pattern regex: {exc}"
+            ) from exc
+        entity = f"{CUSTOM_ENTITY_PREFIX}{i}"
+        recognizers.append(
+            BudgetedPatternRecognizer(
+                budget,
+                supported_entity=entity,
+                # Score 1.0 so a user's explicit pattern wins any overlap with a
+                # built-in detector (e.g. spaCy tagging "EMP-123456" as ORGANIZATION
+                # under detect-all). Presidio resolves overlapping spans by score, so
+                # the custom replacement — not the built-in token — is applied.
+                patterns=[Pattern(name=p.name or entity, regex=p.regex, score=1.0)],
+                supported_language=language,
+            )
+        )
+        entity_ids.append(entity)
+    return recognizers, entity_ids
+
+
+def resolve_entities(
+    req_entities: list[str] | None, custom_entity_ids: list[str]
+) -> list[str] | None:
+    """Effective entity filter.
+
+    `None` means detect-all built-ins (the guardrails "empty selection = detect
+    everything" convention); the ad-hoc custom recognizers still fire under `None`,
+    so adding a custom pattern augments detect-all rather than silently disabling
+    the built-in detectors. An explicit list — including the empty list, which is
+    the data-retention "only these custom patterns" shape — is used verbatim, with
+    the custom ids appended."""
+    if req_entities is None:
+        return None
+    return list(req_entities) + custom_entity_ids
+
+
+class AnalyzeRequest(RequestModel):
+    text: str
+    language: str = "en"
+    entities: list[str] | None = None
+    score_threshold: float | None = None
+    return_decision_process: bool = False
+    patterns: list[CustomPattern] | None = None
+
+
+class AnalyzeBatchRequest(RequestModel):
+    texts: list[str]
+    language: str = "en"
+    entities: list[str] | None = None
+    score_threshold: float | None = None
+    patterns: list[CustomPattern] | None = None
+
+
+class AnonymizeRequest(RequestModel):
+    text: str
+    analyzer_results: list[dict[str, Any]] = []
+    anonymizers: dict[str, dict[str, Any]] | None = None
+    operators: dict[str, dict[str, Any]] | None = None
+    patterns: list[CustomPattern] | None = None
+
+
+class AnonymizeBatchItem(BaseModel):
+    text: str
+    analyzer_results: list[dict[str, Any]] = []
+
+
+class AnonymizeBatchRequest(RequestModel):
+    items: list[AnonymizeBatchItem] = []
+    anonymizers: dict[str, dict[str, Any]] | None = None
+    operators: dict[str, dict[str, Any]] | None = None
+    patterns: list[CustomPattern] | None = None
+
+
+class RedactRequest(RequestModel):
+    text: str
+    language: str = "en"
+    entities: list[str] | None = None
+    score_threshold: float | None = None
+    anonymizers: dict[str, dict[str, Any]] | None = None
+    operators: dict[str, dict[str, Any]] | None = None
+    patterns: list[CustomPattern] | None = None
+
+
+class RedactBatchRequest(RequestModel):
+    texts: list[str]
+    language: str = "en"
+    entities: list[str] | None = None
+    score_threshold: float | None = None
+    anonymizers: dict[str, dict[str, Any]] | None = None
+    operators: dict[str, dict[str, Any]] | None = None
+    patterns: list[CustomPattern] | None = None
+
+
+def build_operators(
+    raw_operators: dict[str, dict[str, Any]] | None,
+) -> dict[str, OperatorConfig] | None:
+    if not raw_operators:
+        return None
+    operators: dict[str, OperatorConfig] = {}
+    for entity, raw_cfg in raw_operators.items():
+        op_cfg = dict(raw_cfg)
+        op_type = op_cfg.pop("type", "replace")
+        operators[entity] = OperatorConfig(op_type, op_cfg)
+    return operators
+
+
+def resolve_operators(
+    anonymizers: dict[str, dict[str, Any]] | None,
+    operators: dict[str, dict[str, Any]] | None,
+    patterns: list[CustomPattern] | None,
+) -> dict[str, OperatorConfig] | None:
+    """Merge the caller's operators with the per-custom-pattern replace operators."""
+    raw = dict(anonymizers or operators or {})
+    raw.update(custom_operators(patterns))
+    return build_operators(raw)
+
+
+def run_anonymize(
+    text: str,
+    raw_results: list[dict[str, Any]],
+    operators: dict[str, OperatorConfig] | None,
+):
+    analyzer_results = [
+        RecognizerResult(
+            entity_type=r["entity_type"],
+            start=r["start"],
+            end=r["end"],
+            score=r.get("score", 1.0),
+        )
+        for r in raw_results
+    ]
+    return anonymizer.anonymize(
+        text=text,
+        analyzer_results=analyzer_results,
+        operators=operators,
+    )
+
+
+# Async so it answers on the event loop: requests queued on _NER_SLOT hold
+# threadpool threads, and the load balancer's health check must not wait behind them.
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok"}
+
+
+@app.get("/supportedentities")
+def supported_entities(language: str = "en") -> list[str]:
+    return analyzer.get_supported_entities(language)
+
+
+@app.post("/analyze")
+def analyze(req: AnalyzeRequest) -> list[dict[str, Any]]:
+    started = time.perf_counter()
+    recognizers, custom_ids = build_custom_recognizers(req.patterns, req.language)
+    entities = resolve_entities(req.entities, custom_ids)
+    results = _analyze_one(
+        req.text,
+        req.language,
+        entities,
+        req.score_threshold,
+        req.return_decision_process,
+        recognizers,
+    )
+    logger.info(
+        "analyze lang=%s chars=%d entities=%d duration_ms=%.1f",
+        req.language,
+        len(req.text),
+        len(results),
+        (time.perf_counter() - started) * 1000,
+    )
+    return [r.to_dict() for r in results]
+
+
+@app.post("/analyze_batch")
+def analyze_batch(req: AnalyzeBatchRequest) -> list[list[dict[str, Any]]]:
+    """Analyze many texts in one pass (spaCy nlp.pipe), returning one span list
+    per input in request order — the batched counterpart to /analyze."""
+    recognizers, custom_ids = build_custom_recognizers(req.patterns, req.language)
+    entities = resolve_entities(req.entities, custom_ids)
+    results = _analyze_many(req.texts, req.language, entities, req.score_threshold, recognizers)
+    return [[r.to_dict() for r in per_text] for per_text in results]
+
+
+@app.post("/anonymize")
+def anonymize(req: AnonymizeRequest) -> dict[str, Any]:
+    started = time.perf_counter()
+    operators = resolve_operators(req.anonymizers, req.operators, req.patterns)
+    result = run_anonymize(req.text, req.analyzer_results, operators)
+    logger.info(
+        "anonymize chars=%d spans=%d duration_ms=%.1f",
+        len(req.text),
+        len(req.analyzer_results),
+        (time.perf_counter() - started) * 1000,
+    )
+    return {
+        "text": result.text,
+        "items": [
+            {
+                "operator": item.operator,
+                "entity_type": item.entity_type,
+                "start": item.start,
+                "end": item.end,
+                "text": item.text,
+            }
+            for item in result.items
+        ],
+    }
+
+
+@app.post("/anonymize_batch")
+def anonymize_batch(req: AnonymizeBatchRequest) -> dict[str, list[str]]:
+    """Mask many texts in one pass, returning masked text per item in request
+    order — the batched counterpart to /anonymize. Anonymization is pure string
+    work (no NLP), so callers should send only items with detected spans."""
+    operators = resolve_operators(req.anonymizers, req.operators, req.patterns)
+    return {
+        "texts": [
+            run_anonymize(item.text, item.analyzer_results, operators).text
+            for item in req.items
+        ]
+    }
+
+
+@app.post("/redact")
+def redact(req: RedactRequest) -> dict[str, str]:
+    """Analyze + anonymize one text in a single round-trip (the combined
+    counterpart to /analyze followed by /anonymize). Returns masked text; a text
+    with no detected PII passes through unchanged. The analyzer results feed the
+    anonymizer directly (no dict round-trip)."""
+    started = time.perf_counter()
+    recognizers, custom_ids = build_custom_recognizers(req.patterns, req.language)
+    entities = resolve_entities(req.entities, custom_ids)
+    operators = resolve_operators(req.anonymizers, req.operators, req.patterns)
+    results = _analyze_one(
+        req.text, req.language, entities, req.score_threshold, ad_hoc_recognizers=recognizers
+    )
+    text = (
+        req.text
+        if not results
+        else anonymizer.anonymize(
+            text=req.text, analyzer_results=results, operators=operators
+        ).text
+    )
+    logger.info(
+        "redact lang=%s chars=%d spans=%d duration_ms=%.1f",
+        req.language,
+        len(req.text),
+        len(results),
+        (time.perf_counter() - started) * 1000,
+    )
+    return {"text": text}
+
+
+@app.post("/redact_batch")
+def redact_batch(req: RedactBatchRequest) -> dict[str, list[str]]:
+    """Analyze + anonymize many texts in a single round-trip (the combined
+    counterpart to /analyze_batch followed by /anonymize_batch). Returns masked
+    text per input in request order; texts with no detected PII pass through
+    unchanged. Analysis batches through spaCy nlp.pipe; the analyzer results feed
+    the anonymizer directly (no dict round-trip), and anonymization runs only on
+    texts that actually matched."""
+    started = time.perf_counter()
+    recognizers, custom_ids = build_custom_recognizers(req.patterns, req.language)
+    entities = resolve_entities(req.entities, custom_ids)
+    operators = resolve_operators(req.anonymizers, req.operators, req.patterns)
+    analyzed = _analyze_many(req.texts, req.language, entities, req.score_threshold, recognizers)
+    masked: list[str] = []
+    total_spans = 0
+    for text, per_text in zip(req.texts, analyzed):
+        if not per_text:
+            masked.append(text)
+            continue
+        total_spans += len(per_text)
+        masked.append(
+            anonymizer.anonymize(
+                text=text, analyzer_results=per_text, operators=operators
+            ).text
+        )
+    logger.info(
+        "redact_batch lang=%s texts=%d chars=%d entities=%s nlp=%s spans=%d duration_ms=%.1f",
+        req.language,
+        len(req.texts),
+        sum(map(len, req.texts)),
+        len(entities) if entities else "all",
+        "skip" if _regex_only(entities, req.score_threshold) else "full",
+        total_spans,
+        (time.perf_counter() - started) * 1000,
+    )
+    return {"texts": masked}

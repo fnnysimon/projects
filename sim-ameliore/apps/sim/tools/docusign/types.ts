@@ -1,0 +1,277 @@
+import type { UserFile } from '@/executor/types'
+import type { OutputProperty, ToolResponse } from '@/tools/types'
+
+/** Common envelope output properties */
+export const ENVELOPE_OUTPUT_PROPERTIES = {
+  envelopeId: { type: 'string', description: 'Unique envelope identifier' },
+  status: {
+    type: 'string',
+    description: 'Envelope status (created, sent, delivered, completed, declined, voided)',
+  },
+  emailSubject: { type: 'string', description: 'Email subject line' },
+  sentDateTime: {
+    type: 'string',
+    description: 'ISO 8601 datetime when envelope was sent',
+    optional: true,
+  },
+  completedDateTime: {
+    type: 'string',
+    description: 'ISO 8601 datetime when envelope was completed',
+    optional: true,
+  },
+  createdDateTime: { type: 'string', description: 'ISO 8601 datetime when envelope was created' },
+  statusChangedDateTime: { type: 'string', description: 'ISO 8601 datetime of last status change' },
+} as const satisfies Record<string, OutputProperty>
+
+export const RECIPIENT_OUTPUT_PROPERTIES = {
+  recipientId: { type: 'string', description: 'Recipient identifier' },
+  name: { type: 'string', description: 'Recipient name' },
+  email: { type: 'string', description: 'Recipient email address' },
+  status: {
+    type: 'string',
+    description: 'Recipient signing status (sent, delivered, completed, declined)',
+  },
+  signedDateTime: {
+    type: 'string',
+    description: 'ISO 8601 datetime when recipient signed',
+    optional: true,
+  },
+  deliveredDateTime: {
+    type: 'string',
+    description: 'ISO 8601 datetime when delivered to recipient',
+    optional: true,
+  },
+} as const satisfies Record<string, OutputProperty>
+
+export const TEMPLATE_OUTPUT_PROPERTIES = {
+  templateId: { type: 'string', description: 'Template identifier' },
+  name: { type: 'string', description: 'Template name' },
+  description: { type: 'string', description: 'Template description', optional: true },
+  shared: { type: 'boolean', description: 'Whether template is shared', optional: true },
+  created: { type: 'string', description: 'ISO 8601 creation date' },
+  lastModified: { type: 'string', description: 'ISO 8601 last modified date' },
+} as const satisfies Record<string, OutputProperty>
+
+/** Pagination outputs shared by the envelope and template list tools */
+export const LIST_PAGINATION_OUTPUTS = {
+  startPosition: {
+    type: 'number',
+    description: 'Zero-based index of the first result in this page',
+    optional: true,
+    nullable: true,
+  },
+  endPosition: {
+    type: 'number',
+    description: 'Zero-based index of the last result in this page',
+    optional: true,
+    nullable: true,
+  },
+  nextUri: {
+    type: 'string',
+    description: 'URI of the next page of results; null on the last page',
+    optional: true,
+    nullable: true,
+  },
+} as const satisfies Record<string, OutputProperty>
+
+export const ENVELOPES_ARRAY_OUTPUT: OutputProperty = {
+  type: 'array',
+  description: 'Array of DocuSign envelopes',
+  items: {
+    type: 'object',
+    properties: ENVELOPE_OUTPUT_PROPERTIES,
+  },
+}
+
+export const RECIPIENTS_ARRAY_OUTPUT: OutputProperty = {
+  type: 'array',
+  description: 'Array of DocuSign recipients',
+  items: {
+    type: 'object',
+    properties: RECIPIENT_OUTPUT_PROPERTIES,
+  },
+}
+
+export const TEMPLATES_ARRAY_OUTPUT: OutputProperty = {
+  type: 'array',
+  description: 'Array of DocuSign templates',
+  items: {
+    type: 'object',
+    properties: TEMPLATE_OUTPUT_PROPERTIES,
+  },
+}
+
+/** Params interfaces */
+export interface DocuSignSendEnvelopeParams {
+  accessToken: string
+  instanceUrl?: string
+  emailSubject: string
+  emailBody?: string
+  signerEmail: string
+  signerName: string
+  ccEmail?: string
+  ccName?: string
+  file?: unknown
+  status?: string
+}
+
+export interface DocuSignCreateFromTemplateParams {
+  accessToken: string
+  instanceUrl?: string
+  templateId: string
+  emailSubject?: string
+  emailBody?: string
+  templateRoles: string
+  status?: string
+}
+
+export interface DocuSignGetEnvelopeParams {
+  accessToken: string
+  instanceUrl?: string
+  envelopeId: string
+}
+
+export interface DocuSignListEnvelopesParams {
+  accessToken: string
+  instanceUrl?: string
+  fromDate?: string
+  toDate?: string
+  envelopeStatus?: string
+  searchText?: string
+  count?: string
+  startPosition?: string
+}
+
+export interface DocuSignVoidEnvelopeParams {
+  accessToken: string
+  instanceUrl?: string
+  envelopeId: string
+  voidedReason: string
+}
+
+export interface DocuSignDownloadDocumentParams {
+  accessToken: string
+  instanceUrl?: string
+  envelopeId: string
+  documentId?: string
+}
+
+export interface DocuSignListTemplatesParams {
+  accessToken: string
+  instanceUrl?: string
+  searchText?: string
+  count?: string
+  startPosition?: string
+}
+
+export interface DocuSignListRecipientsParams {
+  accessToken: string
+  instanceUrl?: string
+  envelopeId: string
+}
+
+/** Response interfaces */
+export interface DocuSignSendEnvelopeResponse extends ToolResponse {
+  output: {
+    envelopeId: string
+    status: string
+    statusDateTime: string | null
+    uri: string | null
+  }
+}
+
+export interface DocuSignCreateFromTemplateResponse extends ToolResponse {
+  output: {
+    envelopeId: string
+    status: string
+    statusDateTime: string | null
+    uri: string | null
+  }
+}
+
+export interface DocuSignGetEnvelopeResponse extends ToolResponse {
+  output: {
+    envelopeId: string
+    status: string
+    emailSubject: string | null
+    sentDateTime: string | null
+    completedDateTime: string | null
+    createdDateTime: string | null
+    statusChangedDateTime: string | null
+    voidedReason: string | null
+    signerCount: number
+    documentCount: number
+  }
+}
+
+export interface DocuSignListEnvelopesResponse extends ToolResponse {
+  output: {
+    envelopes: Array<{
+      envelopeId: string
+      status: string
+      emailSubject: string | null
+      sentDateTime: string | null
+      completedDateTime: string | null
+      createdDateTime: string | null
+      statusChangedDateTime: string | null
+    }>
+    totalSetSize: number
+    resultSetSize: number
+    startPosition: number | null
+    endPosition: number | null
+    nextUri: string | null
+  }
+}
+
+export interface DocuSignVoidEnvelopeResponse extends ToolResponse {
+  output: {
+    envelopeId: string
+    status: string
+  }
+}
+
+export interface DocuSignDownloadDocumentResponse extends ToolResponse {
+  output: {
+    base64Content?: string
+    file?: UserFile
+    mimeType: string
+    fileName: string
+  }
+}
+
+export interface DocuSignListTemplatesResponse extends ToolResponse {
+  output: {
+    templates: Array<{
+      templateId: string
+      name: string
+      description: string | null
+      shared: boolean
+      created: string | null
+      lastModified: string | null
+    }>
+    totalSetSize: number
+    resultSetSize: number
+    startPosition: number | null
+    endPosition: number | null
+    nextUri: string | null
+  }
+}
+
+export interface DocuSignListRecipientsResponse extends ToolResponse {
+  output: {
+    signers: Array<{
+      recipientId: string
+      name: string
+      email: string
+      status: string
+      signedDateTime: string | null
+      deliveredDateTime: string | null
+    }>
+    carbonCopies: Array<{
+      recipientId: string
+      name: string
+      email: string
+      status: string
+    }>
+  }
+}

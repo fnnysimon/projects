@@ -1,0 +1,222 @@
+import { db } from '@sim/db'
+import { readTestDatabaseUrl } from '@sim/db/testing/test-infrastructure'
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
+import { createEnterpriseSearchMigrationFixture } from '@/lib/knowledge/__integration__/migration-fixture'
+
+vi.mock('@sim/db', async () => (await import('@sim/testing')).databaseMock)
+
+const mocks = vi.hoisted(() => ({ token: vi.fn(), list: vi.fn() }))
+vi.mock('@/lib/knowledge/application/authorized-knowledge-use-case', () => ({
+  defineAuthorizedKnowledgeUseCase: (definition: {
+    execute: (args: {
+      principal: { userId: string }
+      input: { organizationId: string }
+      context: { organizationId: string }
+    }) => Promise<unknown>
+  }) => ({
+    execute: (args: { principal: { userId: string }; input: { organizationId: string } }) =>
+      definition.execute({ ...args, context: { organizationId: args.input.organizationId } }),
+  }),
+}))
+vi.mock('@/lib/knowledge/application/operations', () => ({
+  knowledgeOperations: { listGitHubInstallations: {}, connectGitHubInstallation: {} },
+}))
+vi.mock('@/lib/knowledge/application/contexts', () => ({
+  resolveKnowledgeOrganizationContext: vi.fn(),
+}))
+vi.mock('@/lib/knowledge/access/availability', () => ({
+  requireOrganizationSearchAvailable: vi.fn(),
+}))
+vi.mock('@/lib/credentials/managed-oauth', () => ({ resolveManagedOAuthToken: mocks.token }))
+vi.mock('@/lib/credential-groups/provider-registry', () => ({
+  getCredentialGroupProviderAdapter: () => ({
+    getPolicy: async () => ({ authorizationAppId: 'current-app', scopeVersion: 1 }),
+  }),
+}))
+vi.mock('@/lib/oauth/github-installation', async (importOriginal) => ({
+  GitHubInstallationError: (
+    await importOriginal<typeof import('@/lib/oauth/github-installation')>()
+  ).GitHubInstallationError,
+  getGitHubInstallationConfiguration: () => ({
+    configured: true,
+    installUrl: 'https://github.com/apps/example/installations/new',
+  }),
+  listUserAdminGitHubInstallations: mocks.list,
+  verifyGitHubInstallationBinding: vi.fn(),
+}))
+vi.mock('@/lib/core/security/encryption', () => ({ encryptSecret: vi.fn() }))
+
+import { listGitHubSearchInstallations } from '@/lib/knowledge/application/github-installations'
+import { GitHubInstallationError } from '@/lib/oauth/github-installation'
+
+const { drizzle } = await import('drizzle-orm/postgres-js')
+const schema = await import('@sim/db/schema')
+const databaseUrl = readTestDatabaseUrl()
+
+/** Exercises the production reader-selection SQL against isolated local PostgreSQL tables. */
+describe('GitHub installation setup reader ownership in PostgreSQL', () => {
+  let fixture: Awaited<ReturnType<typeof createEnterpriseSearchMigrationFixture>>
+  let executor: PostgresJsDatabase<typeof schema>
+
+  beforeAll(async () => {
+    fixture = await createEnterpriseSearchMigrationFixture(databaseUrl)
+    await fixture.migrate()
+    await fixture.client.unsafe(`
+      ALTER TABLE credential ADD COLUMN revoked_at timestamp,
+        ADD COLUMN credential_group_option_id text, ADD COLUMN managed_oauth_scope_version integer;
+      ALTER TABLE credential_group ADD COLUMN options jsonb NOT NULL DEFAULT '[]';
+      ALTER TABLE credential_group_enrollment ADD COLUMN user_id text;
+      INSERT INTO organization(id) VALUES ('setup-org'), ('other-org');
+    `)
+    executor = drizzle(fixture.client, { schema })
+    vi.mocked(db.select).mockImplementation(executor.select.bind(executor))
+  })
+
+  afterAll(async () => {
+    await fixture?.cleanup()
+  })
+
+  beforeEach(async () => {
+    mocks.token.mockResolvedValue({ accessToken: 'ghu_alice' })
+    mocks.list.mockResolvedValue([])
+    await fixture.client.unsafe(`
+      TRUNCATE credential, credential_group_enrollment, credential_group CASCADE;
+      INSERT INTO credential_group(id,organization_id,name,status,options)
+        VALUES ('setup-group','setup-org','GitHub','active',
+          '[{"id":"github-option","provider":"github-repositories","status":"active"}]');
+      INSERT INTO credential_group_enrollment(id,credential_group_id,email,status,user_id)
+        VALUES ('setup-enrollment','setup-group','alice@example.com','completed','alice');
+      INSERT INTO credential(id,organization_id,type,provider_id,provider_subject_id,authorization_app_id,
+        managed_oauth_status,managed_oauth_scope_version,granted_scopes,encrypted_oauth_token_set,granted_at,
+        credential_group_enrollment_id,credential_group_option_id)
+        VALUES ('alice-github','setup-org','managed_oauth','github-repositories','123','current-app','active',1,
+          ARRAY[]::text[],'encrypted',now(),'setup-enrollment','github-option');
+    `)
+  })
+
+  function list(userId = 'alice', organizationId = 'setup-org') {
+    return listGitHubSearchInstallations.execute({
+      principal: { kind: 'session', userId, sessionId: 'session' },
+      input: { organizationId },
+    })
+  }
+
+  it('selects the acting person’s active credential in the canonical organization', async () => {
+    expect(await list()).toMatchObject({ needsUserConnection: false })
+    expect(mocks.token).toHaveBeenCalledWith({
+      credentialId: 'alice-github',
+      organizationId: 'setup-org',
+      expectedProviderId: 'github-repositories',
+      requiredScopes: [],
+    })
+    expect(await list('bob')).toMatchObject({ needsUserConnection: true })
+    expect(await list('alice', 'other-org')).toMatchObject({ needsUserConnection: true })
+    expect(mocks.token).toHaveBeenCalledTimes(1)
+  })
+
+  describe('with several GitHub accounts connected', () => {
+    const installation = (installationId: string) => ({
+      installationId,
+      accountLogin: installationId,
+    })
+
+    beforeEach(async () => {
+      await fixture.client.unsafe(`
+        INSERT INTO credential(id,organization_id,type,provider_id,provider_subject_id,authorization_app_id,
+          managed_oauth_status,managed_oauth_scope_version,granted_scopes,encrypted_oauth_token_set,granted_at,
+          credential_group_enrollment_id,credential_group_option_id)
+          VALUES ('alice-github-2','setup-org','managed_oauth','github-repositories','456','current-app','active',1,
+            ARRAY[]::text[],'encrypted',now(),'setup-enrollment','github-option');
+      `)
+      mocks.token.mockImplementation(async ({ credentialId }: { credentialId: string }) => ({
+        accessToken: `token-${credentialId}`,
+      }))
+    })
+
+    it('lists installations from each account once', async () => {
+      mocks.list.mockImplementation(async (token: string) =>
+        token === 'token-alice-github'
+          ? [installation('shared'), installation('work')]
+          : [installation('shared'), installation('personal')]
+      )
+      const result = await list()
+      expect(result.needsUserConnection).toBe(false)
+      expect(result.installations.map(({ installationId }) => installationId).sort()).toEqual([
+        'personal',
+        'shared',
+        'work',
+      ])
+    })
+
+    it('does not ask to reconnect while another account still answers', async () => {
+      mocks.list.mockImplementation(async (token: string) => {
+        if (token === 'token-alice-github') throw new GitHubInstallationError('expired', 401)
+        return [installation('personal')]
+      })
+      expect(await list()).toMatchObject({
+        needsUserConnection: false,
+        installations: [installation('personal')],
+      })
+    })
+
+    it('still lists through one account when another lacks organization access', async () => {
+      mocks.list.mockImplementation(async (token: string) => {
+        if (token === 'token-alice-github')
+          throw new GitHubInstallationError('Approve access', 403, 'membership-permissions')
+        return [installation('personal')]
+      })
+      expect(await list()).toMatchObject({
+        needsUserConnection: false,
+        installations: [installation('personal')],
+      })
+    })
+
+    it('reports the failure when no account answers', async () => {
+      mocks.list.mockImplementation(async (token: string) => {
+        if (token === 'token-alice-github')
+          throw new GitHubInstallationError('Approve access', 403, 'membership-permissions')
+        throw new GitHubInstallationError('expired', 401)
+      })
+      await expect(list()).rejects.toThrow('Approve access')
+    })
+
+    it('stays within the setup limit when accounts together see too many', async () => {
+      mocks.list.mockImplementation(async (token: string) =>
+        Array.from({ length: 600 }, (_, index) => installation(`${token}-${index}`))
+      )
+      expect((await list()).installations).toHaveLength(1000)
+    })
+
+    it('asks to reconnect once no account answers', async () => {
+      mocks.list.mockRejectedValue(new GitHubInstallationError('expired', 401))
+      expect(await list()).toMatchObject({ needsUserConnection: true, installations: [] })
+    })
+  })
+
+  it.each([
+    ['credential owner', "UPDATE credential SET organization_id='other-org'"],
+    ['group owner', "UPDATE credential_group SET organization_id='other-org'"],
+    ['credential revocation', 'UPDATE credential SET revoked_at=now()'],
+    ['enrollment revocation', 'UPDATE credential_group_enrollment SET revoked_at=now()'],
+    ['revoked enrollment status', "UPDATE credential_group_enrollment SET status='revoked'"],
+    ['inactive credential', "UPDATE credential SET managed_oauth_status='revoked'"],
+    ['inactive group', "UPDATE credential_group SET status='archived'"],
+    [
+      'disabled option',
+      `UPDATE credential_group SET options='[{"id":"github-option","provider":"github-repositories","status":"disabled"}]'`,
+    ],
+    [
+      'different option provider',
+      `UPDATE credential_group SET options='[{"id":"github-option","provider":"other","status":"active"}]'`,
+    ],
+    ['different option', "UPDATE credential SET credential_group_option_id='other-option'"],
+    ['stale app identity', "UPDATE credential SET authorization_app_id='old-app'"],
+    ['stale scope policy', 'UPDATE credential SET managed_oauth_scope_version=0'],
+  ])('denies %s before using any GitHub token', async (_name, mutation) => {
+    await fixture.client.unsafe(mutation)
+    expect(await list()).toMatchObject({ needsUserConnection: true, installations: [] })
+    expect(mocks.token).not.toHaveBeenCalled()
+    expect(mocks.list).not.toHaveBeenCalled()
+  })
+})

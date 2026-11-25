@@ -1,0 +1,63 @@
+import type { DiscordAssignRoleParams, DiscordAssignRoleResponse } from '@/tools/discord/types'
+import { DISCORD_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const discordAssignRoleTool: ToolConfig<DiscordAssignRoleParams, DiscordAssignRoleResponse> =
+  {
+    id: 'discord_assign_role',
+    name: 'Discord Assign Role',
+    description: 'Assign a role to a member in a Discord server',
+    version: '1.0.0',
+    oauth: DISCORD_CREDENTIAL_OAUTH,
+
+    params: {
+      botToken: {
+        type: 'string',
+        required: true,
+        visibility: 'user-only',
+        description: 'The bot token for authentication',
+      },
+      serverId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The Discord server ID (guild ID), e.g., 123456789012345678',
+      },
+      userId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The user ID to assign the role to, e.g., 123456789012345678',
+      },
+      roleId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The role ID to assign, e.g., 123456789012345678',
+      },
+    },
+
+    request: {
+      url: (params: DiscordAssignRoleParams) => {
+        return `https://discord.com/api/v10/guilds/${safeUrlPathSegment(params.serverId, 'serverId')}/members/${safeUrlPathSegment(params.userId, 'userId')}/roles/${safeUrlPathSegment(params.roleId, 'roleId')}`
+      },
+      method: 'PUT',
+      headers: (params) => ({
+        Authorization: `Bot ${params.botToken.trim()}`,
+      }),
+    },
+
+    transformResponse: async () => {
+      return {
+        success: true,
+        output: {
+          message: 'Role assigned successfully',
+        },
+      }
+    },
+
+    outputs: {
+      message: { type: 'string', description: 'Success or error message' },
+    },
+  }

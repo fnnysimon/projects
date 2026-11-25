@@ -1,0 +1,19 @@
+{
+  "title": "Enterprise",
+  "pages": [
+    "self-hosted",
+    "sso",
+    "scim",
+    "verified-domains",
+    "security",
+    "session-policies",
+    "access-control",
+    "forks",
+    "custom-blocks",
+    "audit-logs",
+    "usage-tracking",
+    "data-retention",
+    "data-drains"
+  ],
+  "defaultOpen": false
+}

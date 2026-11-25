@@ -1,0 +1,140 @@
+import type { OutlookSendParams, OutlookSendResponse } from '@/tools/outlook/types'
+import { normalizeOutlookImportance } from '@/tools/outlook/utils'
+import type { InternalToolConfig } from '@/tools/types'
+
+export const outlookSendTool: InternalToolConfig<OutlookSendParams, OutlookSendResponse> = {
+  id: 'outlook_send',
+  name: 'Outlook Send',
+  description: 'Send emails using Outlook',
+  version: '1.0.0',
+  assistant: {
+    effect: 'write',
+    version: 1,
+    reviewFields: [
+      { name: 'to', label: 'To', target: true },
+      { name: 'cc', label: 'Cc', target: true },
+      { name: 'bcc', label: 'Bcc', target: true },
+      { name: 'replyTo', label: 'Reply-To', target: true },
+      { name: 'replyToMessageId', label: 'Reply to message', target: true },
+      { name: 'subject', label: 'Subject', editable: true },
+      { name: 'body', label: 'Message', format: 'multiline', editable: true },
+    ],
+  },
+
+  oauth: {
+    required: true,
+    provider: 'outlook',
+  },
+
+  params: {
+    accessToken: {
+      type: 'string',
+      required: true,
+      visibility: 'hidden',
+      description: 'Access token for Outlook API',
+    },
+    to: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Recipient email address (comma-separated for multiple recipients)',
+    },
+    subject: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Email subject',
+    },
+    body: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Email body content',
+    },
+    contentType: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Content type for the email body (text or html)',
+    },
+    replyToMessageId: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Message ID to reply to (for threading)',
+    },
+    cc: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'CC recipients (comma-separated)',
+    },
+    bcc: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'BCC recipients (comma-separated)',
+    },
+    replyTo: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Reply-To addresses that replies should go to (comma-separated)',
+    },
+    importance: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'Message importance: low, normal, or high',
+    },
+    attachments: {
+      type: 'file[]',
+      required: false,
+      visibility: 'user-only',
+      description: 'Files to attach to the email',
+    },
+  },
+
+  operation: {
+    input: (params: OutlookSendParams) => {
+      return {
+        accessToken: params.accessToken,
+        to: params.to,
+        subject: params.subject,
+        body: params.body,
+        contentType: params.contentType || 'text',
+        cc: params.cc || null,
+        bcc: params.bcc || null,
+        replyToMessageId: params.replyToMessageId || null,
+        replyTo: params.replyTo || null,
+        importance: normalizeOutlookImportance(params.importance),
+        attachments: params.attachments || null,
+      }
+    },
+  },
+
+  transformResponse: async (response) => {
+    const data = await response.json()
+    if (!data.success) {
+      throw new Error(data.error || 'Failed to send Outlook email')
+    }
+    return {
+      success: true,
+      output: {
+        message: data.output.message,
+        results: {
+          status: data.output.status,
+          timestamp: data.output.timestamp,
+          attachmentCount: data.output.attachmentCount || 0,
+        },
+      },
+    }
+  },
+
+  outputs: {
+    success: { type: 'boolean', description: 'Email send success status' },
+    status: { type: 'string', description: 'Delivery status of the email' },
+    timestamp: { type: 'string', description: 'Timestamp when email was sent' },
+    message: { type: 'string', description: 'Success or error message' },
+  },
+}

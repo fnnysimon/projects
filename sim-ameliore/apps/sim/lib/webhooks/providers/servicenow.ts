@@ -1,0 +1,54 @@
+import { createLogger } from '@sim/logger'
+import { toRecord } from '@sim/utils/object'
+import { NextResponse } from 'next/server'
+import type {
+  AuthContext,
+  EventMatchContext,
+  WebhookProviderHandler,
+} from '@/lib/webhooks/providers/types'
+import { verifyTokenAuth } from '@/lib/webhooks/providers/utils'
+
+const logger = createLogger('WebhookProvider:ServiceNow')
+
+export const servicenowHandler: WebhookProviderHandler = {
+  verifyAuth({ request, requestId, providerConfig }: AuthContext): NextResponse | null {
+    const secret = providerConfig.webhookSecret as string | undefined
+    if (!secret?.trim()) {
+      logger.warn('ServiceNow webhook missing webhookSecret — rejecting', { requestId })
+      return new NextResponse('Unauthorized - Webhook secret not configured', { status: 401 })
+    }
+
+    if (
+      !verifyTokenAuth(request, secret.trim(), 'x-sim-webhook-secret') &&
+      !verifyTokenAuth(request, secret.trim())
+    ) {
+      logger.warn('ServiceNow webhook secret verification failed', { requestId })
+      return new NextResponse('Unauthorized - Invalid webhook secret', { status: 401 })
+    }
+
+    return null
+  },
+
+  async matchEvent({ webhook, workflow, body, requestId, providerConfig }: EventMatchContext) {
+    const triggerId = providerConfig.triggerId as string | undefined
+    if (!triggerId) {
+      return true
+    }
+
+    const { isServiceNowEventMatch } = await import('@/triggers/servicenow/utils')
+    const configuredTableName = providerConfig.tableName as string | undefined
+    const obj = toRecord(body)
+
+    if (!isServiceNowEventMatch(triggerId, obj, configuredTableName)) {
+      logger.debug(`ServiceNow event mismatch for trigger ${triggerId}. Skipping execution.`, {
+        requestId,
+        webhookId: webhook.id,
+        workflowId: workflow.id,
+        triggerId,
+      })
+      return false
+    }
+
+    return true
+  },
+}

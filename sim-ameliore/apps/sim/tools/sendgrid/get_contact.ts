@@ -1,0 +1,76 @@
+import type { ContactResult, GetContactParams, SendGridContact } from '@/tools/sendgrid/types'
+import { SENDGRID_REGIONS } from '@/tools/sendgrid/utils'
+import { SENDGRID_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const sendGridGetContactTool: ToolConfig<GetContactParams, ContactResult> = {
+  id: 'sendgrid_get_contact',
+  name: 'SendGrid Get Contact',
+  description: 'Get a specific contact by ID from SendGrid',
+  version: '1.0.0',
+  oauth: SENDGRID_CREDENTIAL_OAUTH,
+
+  params: {
+    region: SENDGRID_REGIONS.param,
+    apiKey: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'SendGrid API key',
+    },
+    contactId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Contact ID',
+    },
+  },
+
+  request: {
+    url: (params) =>
+      `${SENDGRID_REGIONS.apiBase(params.region)}/marketing/contacts/${safeUrlPathSegment(params.contactId, 'contactId')}`,
+    method: 'GET',
+    headers: (params) => ({
+      Authorization: `Bearer ${params.apiKey}`,
+    }),
+  },
+
+  transformResponse: async (response): Promise<ContactResult> => {
+    if (!response.ok) {
+      const error = (await response.json()) as { errors?: Array<{ message?: string }> }
+      throw new Error(error.errors?.[0]?.message || 'Failed to get contact')
+    }
+
+    const data = (await response.json()) as SendGridContact
+
+    return {
+      success: true,
+      output: {
+        id: data.id,
+        email: data.email,
+        firstName: data.first_name,
+        lastName: data.last_name,
+        createdAt: data.created_at,
+        updatedAt: data.updated_at,
+        listIds: data.list_ids ?? [],
+        customFields: data.custom_fields ?? null,
+      },
+    }
+  },
+
+  outputs: {
+    id: { type: 'string', description: 'Contact ID' },
+    email: { type: 'string', description: 'Contact email address' },
+    firstName: { type: 'string', description: 'Contact first name', optional: true },
+    lastName: { type: 'string', description: 'Contact last name', optional: true },
+    createdAt: { type: 'string', description: 'Creation timestamp', optional: true },
+    updatedAt: { type: 'string', description: 'Last update timestamp', optional: true },
+    listIds: {
+      type: 'json',
+      description: 'Array of list IDs the contact belongs to',
+      optional: true,
+    },
+    customFields: { type: 'json', description: 'Custom field values', optional: true },
+  },
+}

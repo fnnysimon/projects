@@ -1,0 +1,70 @@
+import type { DiscordGetChannelParams, DiscordGetChannelResponse } from '@/tools/discord/types'
+import { DISCORD_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const discordGetChannelTool: ToolConfig<DiscordGetChannelParams, DiscordGetChannelResponse> =
+  {
+    id: 'discord_get_channel',
+    name: 'Discord Get Channel',
+    description: 'Get information about a Discord channel',
+    version: '1.0.0',
+    oauth: DISCORD_CREDENTIAL_OAUTH,
+
+    params: {
+      botToken: {
+        type: 'string',
+        required: true,
+        visibility: 'user-only',
+        description: 'The bot token for authentication',
+      },
+      channelId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The Discord channel ID to retrieve, e.g., 123456789012345678',
+      },
+      serverId: {
+        type: 'string',
+        required: false,
+        visibility: 'user-or-llm',
+        description: 'The Discord server ID (guild ID), e.g., 123456789012345678',
+      },
+    },
+
+    request: {
+      url: (params: DiscordGetChannelParams) => {
+        return `https://discord.com/api/v10/channels/${safeUrlPathSegment(params.channelId, 'channelId')}`
+      },
+      method: 'GET',
+      headers: (params) => ({
+        Authorization: `Bot ${params.botToken.trim()}`,
+      }),
+    },
+
+    transformResponse: async (response) => {
+      const data = await response.json()
+      return {
+        success: true,
+        output: {
+          message: 'Channel information retrieved successfully',
+          data,
+        },
+      }
+    },
+
+    outputs: {
+      message: { type: 'string', description: 'Success or error message' },
+      data: {
+        type: 'object',
+        description: 'Channel data',
+        properties: {
+          id: { type: 'string', description: 'Channel ID' },
+          name: { type: 'string', description: 'Channel name' },
+          type: { type: 'number', description: 'Channel type' },
+          topic: { type: 'string', description: 'Channel topic', optional: true, nullable: true },
+          guild_id: { type: 'string', description: 'Server ID' },
+        },
+      },
+    },
+  }

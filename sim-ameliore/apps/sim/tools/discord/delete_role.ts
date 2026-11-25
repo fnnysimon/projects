@@ -1,0 +1,57 @@
+import type { DiscordDeleteRoleParams, DiscordDeleteRoleResponse } from '@/tools/discord/types'
+import { DISCORD_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const discordDeleteRoleTool: ToolConfig<DiscordDeleteRoleParams, DiscordDeleteRoleResponse> =
+  {
+    id: 'discord_delete_role',
+    name: 'Discord Delete Role',
+    description: 'Delete a role from a Discord server',
+    version: '1.0.0',
+    oauth: DISCORD_CREDENTIAL_OAUTH,
+
+    params: {
+      botToken: {
+        type: 'string',
+        required: true,
+        visibility: 'user-only',
+        description: 'The bot token for authentication',
+      },
+      serverId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The Discord server ID (guild ID), e.g., 123456789012345678',
+      },
+      roleId: {
+        type: 'string',
+        required: true,
+        visibility: 'user-or-llm',
+        description: 'The role ID to delete, e.g., 123456789012345678',
+      },
+    },
+
+    request: {
+      url: (params: DiscordDeleteRoleParams) => {
+        return `https://discord.com/api/v10/guilds/${safeUrlPathSegment(params.serverId, 'serverId')}/roles/${safeUrlPathSegment(params.roleId, 'roleId')}`
+      },
+      method: 'DELETE',
+      headers: (params) => ({
+        Authorization: `Bot ${params.botToken.trim()}`,
+      }),
+    },
+
+    transformResponse: async () => {
+      return {
+        success: true,
+        output: {
+          message: 'Role deleted successfully',
+        },
+      }
+    },
+
+    outputs: {
+      message: { type: 'string', description: 'Success or error message' },
+    },
+  }

@@ -1,0 +1,123 @@
+import { db } from '@sim/db'
+import { account, webhook } from '@sim/db/schema'
+import { createLogger } from '@sim/logger'
+import { toRecord } from '@sim/utils/object'
+import { eq } from 'drizzle-orm'
+import { isUnavailableFailure } from '@/lib/core/orchestration/types'
+import { refreshAccessTokenIfNeeded, resolveOAuthAccountId } from '@/lib/oauth/credential-service'
+import type {
+  FormatInputContext,
+  FormatInputResult,
+  PollingConfigContext,
+  WebhookProviderHandler,
+} from '@/lib/webhooks/providers/types'
+
+const logger = createLogger('WebhookProvider:Outlook')
+
+export const outlookHandler: WebhookProviderHandler = {
+  async formatInput({ body }: FormatInputContext): Promise<FormatInputResult> {
+    const b = body as Record<string, unknown>
+    if (b && typeof b === 'object' && 'email' in b) {
+      return { input: { email: b.email, timestamp: b.timestamp } }
+    }
+    return { input: b }
+  },
+
+  async configurePolling({
+    webhook: webhookData,
+    requestId,
+    persistProviderConfig,
+  }: PollingConfigContext) {
+    logger.info(`Setting up Outlook polling for webhook ${webhookData.id}`, { requestId })
+
+    try {
+      const providerConfig = toRecord(webhookData.providerConfig)
+      const credentialId = providerConfig.credentialId as string | undefined
+
+      if (!credentialId) {
+        logger.error(`Missing credentialId for Outlook webhook ${webhookData.id}`, { requestId })
+        return false
+      }
+
+      const resolvedOutlook = await resolveOAuthAccountId(credentialId)
+      if (!resolvedOutlook) {
+        logger.error(
+          `Could not resolve credential ${credentialId} for Outlook webhook ${webhookData.id}`,
+          { requestId }
+        )
+        return false
+      }
+
+      const rows = await db
+        .select()
+        .from(account)
+        .where(eq(account.id, resolvedOutlook.accountId))
+        .limit(1)
+      if (rows.length === 0) {
+        logger.error(`Credential ${credentialId} not found for Outlook webhook ${webhookData.id}`, {
+          requestId,
+        })
+        return false
+      }
+
+      const effectiveUserId = rows[0].userId
+
+      const accessToken = await refreshAccessTokenIfNeeded(
+        resolvedOutlook.accountId,
+        effectiveUserId,
+        requestId
+      )
+      if (!accessToken) {
+        logger.error(`Failed to refresh/access Outlook token for credential ${credentialId}`, {
+          requestId,
+        })
+        return false
+      }
+
+      const now = new Date()
+
+      const configuredProviderConfig = {
+        ...providerConfig,
+        userId: effectiveUserId,
+        credentialId,
+        maxEmailsPerPoll:
+          typeof providerConfig.maxEmailsPerPoll === 'string'
+            ? Number.parseInt(providerConfig.maxEmailsPerPoll, 10) || 25
+            : (providerConfig.maxEmailsPerPoll as number) || 25,
+        pollingInterval:
+          typeof providerConfig.pollingInterval === 'string'
+            ? Number.parseInt(providerConfig.pollingInterval, 10) || 5
+            : (providerConfig.pollingInterval as number) || 5,
+        markAsRead: providerConfig.markAsRead || false,
+        includeRawEmail: providerConfig.includeRawEmail || false,
+        folderIds: providerConfig.folderIds || ['inbox'],
+        folderFilterBehavior: providerConfig.folderFilterBehavior || 'INCLUDE',
+        lastCheckedTimestamp: (providerConfig.lastCheckedTimestamp as string) || now.toISOString(),
+        setupCompleted: true,
+      }
+      if (persistProviderConfig) {
+        await persistProviderConfig(configuredProviderConfig)
+      } else {
+        await db
+          .update(webhook)
+          .set({ providerConfig: configuredProviderConfig, updatedAt: now })
+          .where(eq(webhook.id, webhookData.id as string))
+      }
+
+      logger.info(`Successfully configured Outlook polling for webhook ${webhookData.id}`, {
+        requestId,
+      })
+      return true
+    } catch (error: unknown) {
+      if (isUnavailableFailure(error)) throw error
+      const err = error as Error
+      logger.error('Failed to configure Outlook polling', {
+        requestId,
+        webhookId: webhookData.id,
+        error: err.message,
+        stack: err.stack,
+      })
+      return false
+    }
+  },
+}

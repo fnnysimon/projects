@@ -1,0 +1,449 @@
+import type { ComputerUseResult, ComputerUseSnapshot } from '@sim/desktop-bridge/computer-use'
+import { describe, expect, it } from 'vitest'
+import { computerToolResultForModel } from '@/lib/mothership/tools/client/computer-tool-result'
+
+function snapshot(): ComputerUseSnapshot {
+  return {
+    kind: 'state',
+    bundleId: 'com.example.Fixture',
+    snapshotId: 'new-state',
+    windowId: '1',
+    windows: [{ windowId: '1', title: 'Fixture', x: 20, y: 40, width: 400, height: 300 }],
+    nodes: [
+      {
+        elementId: 'editor',
+        role: 'AXTextArea',
+        actions: [],
+        label: 'Composer',
+        focused: true,
+        editable: true,
+      },
+    ],
+    truncated: false,
+    screenshot: { base64: 'YWJj', mimeType: 'image/png', width: 800, height: 600 },
+  }
+}
+
+function sequence(observation: ComputerUseSnapshot): ComputerUseResult {
+  return {
+    kind: 'action',
+    action: 'input_sequence',
+    bundleId: observation.bundleId,
+    dispatched: true,
+    verified: false,
+    sequence: { completedSteps: 1, totalSteps: 2, error: 'Focus changed' },
+    observation,
+  }
+}
+
+describe('native computer model projection', () => {
+  it.each([
+    { nested: false, isActive: false },
+    { nested: true, isActive: false },
+    { nested: false, isActive: undefined },
+    { nested: true, isActive: undefined },
+  ])(
+    'preserves foreground state independently of AX editor focus (nested=$nested, isActive=$isActive)',
+    ({ nested, isActive }) => {
+      const state = snapshot()
+      if (isActive !== undefined) state.isActive = isActive
+      const result = computerToolResultForModel(nested ? sequence(state) : state)
+      const projected = 'observation' in result ? result.observation : result
+      if (isActive === undefined) expect(projected).not.toHaveProperty('isActive')
+      else expect(projected).toHaveProperty('isActive', false)
+      expect(projected).toMatchObject({
+        accessibilityTree: expect.stringContaining('focused editable'),
+      })
+    }
+  )
+
+  it('lifts action observation pixels without duplicating bytes or losing partial dispatch', () => {
+    const result = computerToolResultForModel(sequence(snapshot()))
+    expect(result).toMatchObject({
+      dispatched: true,
+      verified: false,
+      sequence: { completedSteps: 1, error: 'Focus changed' },
+      observation: {
+        snapshotId: 'new-state',
+        accessibilityTree: expect.stringContaining('editor AXTextArea'),
+      },
+      observations: [{ name: 'Computer screenshot', mediaType: 'image/png', data: 'YWJj' }],
+    })
+    expect(JSON.stringify(result).match(/YWJj/g)).toHaveLength(1)
+    expect(result).not.toHaveProperty('observation.screenshot')
+    expect(result).not.toHaveProperty('observation.observations')
+  })
+
+  it.each([false, true])(
+    'keeps a late rich editor and its ancestry inline under the spill limit (nested=%s)',
+    (nested) => {
+      const state = snapshot()
+      state.nodes = Array.from({ length: 784 }, (_, index) => ({
+        elementId: `e${index}`,
+        role: index === 0 ? 'AXWindow' : 'AXStaticText',
+        parentId: index === 0 ? undefined : 'e0',
+        label: `Control ${index} 漢字😀 "quoted" \n${'verbose '.repeat(50)}`,
+        actions: index === 0 ? [] : ['AXPress', 'AXShowMenu', 'AXScrollToVisible'],
+        windowId: '1',
+        x: index,
+        y: 42,
+        width: 100,
+        height: 30,
+      }))
+      state.nodes[781] = {
+        elementId: 'send-late',
+        parentId: 'e782',
+        role: 'AXButton',
+        label: 'Send now',
+        actions: ['AXPress'],
+        windowId: '1',
+        x: 100,
+        y: 100,
+        width: 80,
+        height: 32,
+      }
+      state.nodes[783] = {
+        elementId: 'editor-late',
+        parentId: 'e782',
+        role: 'AXTextArea',
+        label: 'Fixture composer',
+        value: 'Unicode ✓',
+        focused: true,
+        editable: true,
+        placeholder: 'Message to fixture',
+        actions: ['AXConfirm'],
+        windowId: '1',
+      }
+      const result = computerToolResultForModel(nested ? sequence(state) : state)
+      const textResult = { ...result, observations: undefined }
+      const serialized = JSON.stringify(textResult)
+      expect(new TextEncoder().encode(serialized).length).toBeLessThan(22 * 1024)
+      expect(serialized).toContain('editor-late AXTextArea parent=e782')
+      expect(serialized).toContain('e782 AXStaticText parent=e0')
+      expect(serialized).toContain('send-late AXButton parent=e782')
+      expect(serialized).toContain('e0 AXWindow')
+      expect(serialized).toContain('focused editable')
+      expect(serialized).toContain('Message to fixture')
+      const projected = 'observation' in result ? result.observation : result
+      expect(projected).toMatchObject({ truncated: true, omittedNodeCount: expect.any(Number) })
+      expect(
+        projected && 'omittedNodeCount' in projected && projected.omittedNodeCount
+      ).toBeGreaterThan(0)
+      expect(state.nodes).toHaveLength(784)
+      expect(state.nodes[783]?.label).toBe('Fixture composer')
+    }
+  )
+
+  it.each([false, true])(
+    'omits an oversized screenshot while retaining usable state and dispatch certainty (nested=%s)',
+    (nested) => {
+      const state = snapshot()
+      state.screenshot = {
+        base64: Buffer.alloc(8 * 1024 * 1024).toString('base64'),
+        mimeType: 'image/png',
+        width: 3840,
+        height: 2160,
+      }
+      const result = computerToolResultForModel(nested ? sequence(state) : state)
+      const body = JSON.stringify({
+        toolCallId: 'large-screenshot',
+        status: 'success',
+        message: 'Observed',
+        data: result,
+      })
+      expect(Buffer.byteLength(body)).toBeLessThan(10 * 1024 * 1024)
+      expect(result).not.toHaveProperty('observations')
+      const projected = 'observation' in result ? result.observation : result
+      expect(projected).toMatchObject({
+        screenshotError: expect.stringContaining('omitted'),
+        accessibilityTree: expect.stringContaining('editor AXTextArea'),
+      })
+      expect(projected).not.toHaveProperty('screenshotSize')
+      if (nested)
+        expect(result).toMatchObject({
+          dispatched: true,
+          verified: false,
+          sequence: { completedSteps: 1 },
+        })
+    }
+  )
+
+  it('retains a focused editor without dangling references when its ancestry exceeds the budget', () => {
+    const state = snapshot()
+    state.nodes = Array.from({ length: 100 }, (_, index) => ({
+      elementId: `deep-${index}`,
+      parentId: index > 0 ? `deep-${index - 1}` : undefined,
+      role: index === 99 ? 'AXTextArea' : 'AXGroup',
+      label: 'Container '.repeat(50),
+      value: 'State '.repeat(80),
+      actions: [],
+      focused: index === 99,
+      editable: index === 99,
+    }))
+    const result = computerToolResultForModel(sequence(state))
+    if (
+      !('observation' in result) ||
+      !result.observation ||
+      !('accessibilityTree' in result.observation)
+    )
+      throw new Error('Missing projected observation')
+    const tree = result.observation.accessibilityTree
+    const ids = new Set(tree.split('\n').map((row) => row.split(' ')[0]))
+    expect(ids.has('deep-99')).toBe(true)
+    expect(ids.size).toBeLessThan(state.nodes.length)
+    for (const match of tree.matchAll(/\bparent=(\S+)/g)) expect(ids.has(match[1])).toBe(true)
+    expect(Buffer.byteLength(JSON.stringify({ ...result, observations: undefined }))).toBeLessThan(
+      22 * 1024
+    )
+    expect(result).toMatchObject({ dispatched: true, sequence: { completedSteps: 1 } })
+  })
+
+  it('folds empty layout groups so their controls fit and point at a shown parent', () => {
+    const state = snapshot()
+    state.nodes = [
+      { elementId: 'window', role: 'AXWindow', label: 'Fixture', actions: [], windowId: '1' },
+      ...Array.from({ length: 300 }, (_, index) => ({
+        elementId: `wrap-${index}`,
+        parentId: index === 0 ? 'window' : `wrap-${index - 1}`,
+        role: 'AXGroup',
+        actions: [],
+        windowId: '1',
+      })),
+      ...Array.from({ length: 150 }, (_, index) => ({
+        elementId: `button-${index}`,
+        parentId: 'wrap-299',
+        role: 'AXButton',
+        label: `Action ${index}`,
+        actions: ['AXPress'],
+        windowId: '1',
+      })),
+    ]
+    const result = computerToolResultForModel(state)
+    if (!('accessibilityTree' in result)) throw new Error('Missing projected tree')
+    const rows = result.accessibilityTree.split('\n')
+    expect(rows.some((row) => row.includes('AXGroup'))).toBe(false)
+    expect(rows.filter((row) => row.includes('AXButton'))).toHaveLength(150)
+    expect(rows.find((row) => row.startsWith('button-0 '))).toContain('parent=window')
+    expect(result.omittedNodeCount).toBe(0)
+  })
+
+  it('never names a node as its own parent through a wrapper cycle', () => {
+    const state = snapshot()
+    state.nodes = [
+      {
+        elementId: 'button',
+        parentId: 'wrap',
+        role: 'AXButton',
+        label: 'Go',
+        actions: ['AXPress'],
+      },
+      { elementId: 'wrap', parentId: 'button', role: 'AXGroup', actions: [] },
+    ]
+    const result = computerToolResultForModel(state)
+    if (!('accessibilityTree' in result)) throw new Error('Missing projected tree')
+    expect(result.accessibilityTree).toContain('button AXButton')
+    expect(result.accessibilityTree).not.toContain('parent=button')
+  })
+
+  it('keeps an empty layout group that reports itself disabled', () => {
+    const state = snapshot()
+    state.nodes = [
+      { elementId: 'window', role: 'AXWindow', label: 'Fixture', actions: [], windowId: '1' },
+      {
+        elementId: 'pane',
+        parentId: 'window',
+        role: 'AXGroup',
+        enabled: false,
+        actions: [],
+        windowId: '1',
+      },
+      {
+        elementId: 'save',
+        parentId: 'pane',
+        role: 'AXButton',
+        label: 'Save',
+        actions: ['AXPress'],
+        windowId: '1',
+      },
+    ]
+    const result = computerToolResultForModel(state)
+    if (!('accessibilityTree' in result)) throw new Error('Missing projected tree')
+    const rows = result.accessibilityTree.split('\n')
+    expect(rows.find((row) => row.startsWith('pane '))).toContain('disabled')
+    expect(rows.find((row) => row.startsWith('save '))).toContain('parent=pane')
+  })
+
+  it('does not split an emoji when bounding text for the model', () => {
+    const state = snapshot()
+    state.nodes[0] = {
+      elementId: 'editor',
+      role: 'AXTextArea',
+      actions: [],
+      value: `${'x'.repeat(511)}😀suffix`,
+      editable: true,
+    }
+    const output = computerToolResultForModel(state)
+    expect(JSON.stringify(output)).not.toContain('\\ud83d')
+    expect(output).toMatchObject({ truncated: true })
+  })
+
+  it('preserves the dispatched action when observation failed', () => {
+    const result = {
+      kind: 'action',
+      action: 'click',
+      bundleId: 'com.example.Fixture',
+      dispatched: true,
+      verified: false,
+      observationError: 'Window closed',
+    } satisfies ComputerUseResult
+    expect(computerToolResultForModel(result)).toEqual(result)
+  })
+})
+
+describe('change-only observations after an action', () => {
+  const buttons = (snapshotId: string, labels: string[], windowId = '1'): ComputerUseSnapshot => ({
+    kind: 'state',
+    bundleId: 'com.example.Fixture',
+    snapshotId,
+    windowId,
+    windows: [{ windowId, title: 'Fixture', x: 0, y: 0, width: 400, height: 300 }],
+    nodes: labels.map((label, index) => ({
+      elementId: `e${index}`,
+      role: 'AXButton',
+      label,
+      actions: ['AXPress'],
+    })),
+    truncated: false,
+  })
+  const click = (observation: ComputerUseSnapshot): ComputerUseResult => ({
+    kind: 'action',
+    action: 'click',
+    bundleId: observation.bundleId,
+    dispatched: true,
+    verified: false,
+    observation,
+  })
+  const tree = (result: unknown) =>
+    (result as { observation: { accessibilityTree: string } }).observation.accessibilityTree
+  const field = (result: unknown, name: string) =>
+    (result as { observation: Record<string, unknown> }).observation[name]
+  const labels = ['One', 'Two', 'Three', 'Four', 'Five', 'Six']
+  const stable = { stableElementIds: true }
+
+  it('sends whole trees when the desktop cannot keep ids stable', () => {
+    computerToolResultForModel(buttons('a1', labels))
+    const result = computerToolResultForModel(
+      click(buttons('a2', [...labels.slice(0, 5), 'Changed'])),
+      {
+        baseSnapshotId: 'a1',
+      }
+    )
+    expect(field(result, 'changedSince')).toBeUndefined()
+    expect(tree(result).split('\n')).toHaveLength(6)
+  })
+
+  it('sends a whole tree when the snapshot the action used is unknown', () => {
+    const result = computerToolResultForModel(click(buttons('b2', labels)), {
+      ...stable,
+      baseSnapshotId: 'never-seen',
+    })
+    expect(field(result, 'changedSince')).toBeUndefined()
+    expect(tree(result).split('\n')).toHaveLength(6)
+  })
+
+  it('lists only changed and new rows and the ids that disappeared', () => {
+    computerToolResultForModel(buttons('c1', labels))
+    const next = buttons('c2', ['One', 'Two', 'Three', 'Four', 'Renamed'])
+    next.nodes.push({ elementId: 'e9', role: 'AXButton', label: 'Added', actions: ['AXPress'] })
+    const result = computerToolResultForModel(click(next), { ...stable, baseSnapshotId: 'c1' })
+    expect(field(result, 'changedSince')).toBe('c1')
+    expect(tree(result)).toContain('label="Renamed"')
+    expect(tree(result)).toContain('e9 AXButton label="Added"')
+    expect(tree(result)).not.toContain('label="One"')
+    expect(field(result, 'removedElementIds')).toEqual(['e5'])
+  })
+
+  it('folds earlier change lists into what the next action is compared against', () => {
+    computerToolResultForModel(buttons('d1', labels))
+    const renamed = [...labels.slice(0, 5), 'Renamed']
+    computerToolResultForModel(click(buttons('d2', renamed)), { ...stable, baseSnapshotId: 'd1' })
+    const result = computerToolResultForModel(click(buttons('d3', ['Uno', ...renamed.slice(1)])), {
+      ...stable,
+      baseSnapshotId: 'd2',
+    })
+    expect(field(result, 'changedSince')).toBe('d2')
+    expect(tree(result)).toContain('label="Uno"')
+    expect(tree(result)).not.toContain('label="Renamed"')
+  })
+
+  it('sends a whole tree when an action changed nothing visible', () => {
+    computerToolResultForModel(buttons('k1', labels))
+    const result = computerToolResultForModel(click(buttons('k2', labels)), {
+      ...stable,
+      baseSnapshotId: 'k1',
+    })
+    expect(field(result, 'changedSince')).toBeUndefined()
+    expect(tree(result).split('\n')).toHaveLength(6)
+  })
+
+  it('sends a whole tree when a window, sheet or popover opens', () => {
+    computerToolResultForModel(buttons('m1', labels))
+    const next = buttons('m2', [...labels.slice(0, 5), 'Renamed'])
+    next.windows.push({ windowId: '9', title: 'Sheet', x: 0, y: 0, width: 200, height: 100 })
+    const result = computerToolResultForModel(click(next), { ...stable, baseSnapshotId: 'm1' })
+    expect(field(result, 'changedSince')).toBeUndefined()
+  })
+
+  it('reports a shown row that folded into a layout wrapper as no longer shown', () => {
+    const pane = (enabled: boolean, snapshotId: string): ComputerUseSnapshot => {
+      const state = buttons(snapshotId, [...labels.slice(0, 5), enabled ? 'Ready' : 'Busy'])
+      state.nodes.push({ elementId: 'e8', role: 'AXGroup', actions: [], enabled })
+      return state
+    }
+    computerToolResultForModel(pane(false, 'n1'))
+    const result = computerToolResultForModel(click(pane(true, 'n2')), {
+      ...stable,
+      baseSnapshotId: 'n1',
+    })
+    expect(field(result, 'changedSince')).toBe('n1')
+    expect(field(result, 'removedElementIds')).toEqual(['e8'])
+  })
+
+  it('sends a whole tree when the native read was cut short', () => {
+    computerToolResultForModel(buttons('p1', labels))
+    const partial = { ...buttons('p2', labels.slice(0, 4)), truncated: true }
+    const result = computerToolResultForModel(click(partial), { ...stable, baseSnapshotId: 'p1' })
+    expect(field(result, 'changedSince')).toBeUndefined()
+    expect(field(result, 'removedElementIds')).toBeUndefined()
+  })
+
+  it('returns to a whole tree after a run of change lists', () => {
+    computerToolResultForModel(buttons('f0', labels))
+    let result: unknown
+    for (let step = 1; step <= 5; step++)
+      result = computerToolResultForModel(
+        click(buttons(`f${step}`, [...labels.slice(0, 5), `Step ${step}`])),
+        {
+          ...stable,
+          baseSnapshotId: `f${step - 1}`,
+        }
+      )
+    expect(field(result, 'changedSince')).toBeUndefined()
+    expect(tree(result).split('\n')).toHaveLength(6)
+  })
+
+  it('sends a whole tree for another window or when most of the tree changed', () => {
+    computerToolResultForModel(buttons('g1', labels))
+    const otherWindow = computerToolResultForModel(click(buttons('g2', labels, '2')), {
+      ...stable,
+      baseSnapshotId: 'g1',
+    })
+    expect(field(otherWindow, 'changedSince')).toBeUndefined()
+    computerToolResultForModel(buttons('h1', labels))
+    const rewritten = computerToolResultForModel(
+      click(buttons('h2', ['A', 'B', 'C', 'D', 'Five', 'Six'])),
+      { ...stable, baseSnapshotId: 'h1' }
+    )
+    expect(field(rewritten, 'changedSince')).toBeUndefined()
+  })
+})

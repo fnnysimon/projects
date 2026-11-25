@@ -1,0 +1,67 @@
+import { buildMailchimpUrl, handleMailchimpError } from '@/tools/mailchimp/types'
+import { MAILCHIMP_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export interface MailchimpDeleteBatchOperationParams {
+  apiKey: string
+  batchId: string
+}
+
+export interface MailchimpDeleteBatchOperationResponse {
+  success: boolean
+}
+
+export const mailchimpDeleteBatchOperationTool: ToolConfig<
+  MailchimpDeleteBatchOperationParams,
+  MailchimpDeleteBatchOperationResponse
+> = {
+  id: 'mailchimp_delete_batch_operation',
+  name: 'Delete Batch Operation from Mailchimp',
+  description: 'Delete a batch operation from Mailchimp',
+  version: '1.0.0',
+  oauth: MAILCHIMP_CREDENTIAL_OAUTH,
+
+  params: {
+    apiKey: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'Mailchimp API key with server prefix',
+    },
+    batchId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'The unique ID for the batch operation to delete (e.g., "abc123def4")',
+    },
+  },
+
+  request: {
+    url: (params) =>
+      buildMailchimpUrl(params.apiKey, `/batches/${safeUrlPathSegment(params.batchId, 'batchId')}`),
+    method: 'DELETE',
+    headers: (params) => ({
+      Authorization: `Bearer ${params.apiKey}`,
+      'Content-Type': 'application/json',
+    }),
+  },
+
+  transformResponse: async (response: Response) => {
+    if (!response.ok) {
+      const data = await response.json()
+      handleMailchimpError(data, response.status, 'delete_batch_operation')
+    }
+
+    return {
+      success: true,
+    }
+  },
+
+  outputs: {
+    success: {
+      type: 'boolean',
+      description: 'Whether the batch operation was successfully deleted',
+    },
+  },
+}

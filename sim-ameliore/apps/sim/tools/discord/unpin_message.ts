@@ -1,0 +1,65 @@
+import type { DiscordUnpinMessageParams, DiscordUnpinMessageResponse } from '@/tools/discord/types'
+import { DISCORD_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const discordUnpinMessageTool: ToolConfig<
+  DiscordUnpinMessageParams,
+  DiscordUnpinMessageResponse
+> = {
+  id: 'discord_unpin_message',
+  name: 'Discord Unpin Message',
+  description: 'Unpin a message in a Discord channel',
+  version: '1.0.0',
+  oauth: DISCORD_CREDENTIAL_OAUTH,
+
+  params: {
+    botToken: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'The bot token for authentication',
+    },
+    channelId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'The Discord channel ID containing the message, e.g., 123456789012345678',
+    },
+    messageId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'The ID of the message to unpin, e.g., 123456789012345678',
+    },
+    serverId: {
+      type: 'string',
+      required: false,
+      visibility: 'user-or-llm',
+      description: 'The Discord server ID (guild ID), e.g., 123456789012345678',
+    },
+  },
+
+  request: {
+    url: (params: DiscordUnpinMessageParams) => {
+      return `https://discord.com/api/v10/channels/${safeUrlPathSegment(params.channelId, 'channelId')}/messages/pins/${safeUrlPathSegment(params.messageId, 'messageId')}`
+    },
+    method: 'DELETE',
+    headers: (params) => ({
+      Authorization: `Bot ${params.botToken.trim()}`,
+    }),
+  },
+
+  transformResponse: async () => {
+    return {
+      success: true,
+      output: {
+        message: 'Message unpinned successfully',
+      },
+    }
+  },
+
+  outputs: {
+    message: { type: 'string', description: 'Success or error message' },
+  },
+}

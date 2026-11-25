@@ -1,0 +1,72 @@
+import type { GitLabGetProjectParams, GitLabGetProjectResponse } from '@/tools/gitlab/types'
+import { encodeGitLabResourceId, getGitLabApiBase } from '@/tools/gitlab/utils'
+import { GITLAB_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { ToolConfig } from '@/tools/types'
+
+export const gitlabGetProjectTool: ToolConfig<GitLabGetProjectParams, GitLabGetProjectResponse> = {
+  id: 'gitlab_get_project',
+  personalToken: { provider: 'gitlab', tokenParam: 'accessToken', hostParam: 'host' },
+  name: 'GitLab Get Project',
+  description: 'Get details of a specific GitLab project',
+  version: '1.0.0',
+  oauth: GITLAB_CREDENTIAL_OAUTH,
+
+  params: {
+    accessToken: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'GitLab Personal Access Token',
+    },
+    host: {
+      type: 'string',
+      required: false,
+      visibility: 'user-only',
+      description: 'Self-managed GitLab host (e.g. gitlab.example.com). Defaults to gitlab.com.',
+    },
+    projectId: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Project ID or path (e.g. mygroup/myproject) (e.g., "namespace/project")',
+    },
+  },
+
+  request: {
+    url: (params) => {
+      const encodedId = encodeGitLabResourceId(params.projectId)
+      return `${getGitLabApiBase(params.host)}/projects/${encodedId}`
+    },
+    method: 'GET',
+    headers: (params) => ({
+      'PRIVATE-TOKEN': params.accessToken,
+    }),
+  },
+
+  transformResponse: async (response) => {
+    if (!response.ok) {
+      const errorText = await response.text()
+      return {
+        success: false,
+        error: `GitLab API error: ${response.status} ${errorText}`,
+        output: {},
+      }
+    }
+
+    const project = await response.json()
+
+    return {
+      success: true,
+      output: {
+        project,
+      },
+    }
+  },
+
+  outputs: {
+    project: {
+      type: 'object',
+      description: 'The GitLab project details',
+    },
+  },
+}

@@ -1,0 +1,58 @@
+import { STRIPE_CREDENTIAL_OAUTH } from '@/tools/shared/saved-credentials'
+import type { DeleteProductParams, ProductDeleteResponse } from '@/tools/stripe/types'
+import type { ToolConfig } from '@/tools/types'
+import { safeUrlPathSegment } from '@/tools/url-path'
+
+export const stripeDeleteProductTool: ToolConfig<DeleteProductParams, ProductDeleteResponse> = {
+  id: 'stripe_delete_product',
+  name: 'Stripe Delete Product',
+  description: 'Permanently delete a product',
+  version: '1.0.0',
+  oauth: STRIPE_CREDENTIAL_OAUTH,
+
+  params: {
+    apiKey: {
+      type: 'string',
+      required: true,
+      visibility: 'user-only',
+      description: 'Stripe API key (secret key)',
+    },
+    id: {
+      type: 'string',
+      required: true,
+      visibility: 'user-or-llm',
+      description: 'Product ID (e.g., prod_1234567890)',
+    },
+  },
+
+  request: {
+    url: (params) => `https://api.stripe.com/v1/products/${safeUrlPathSegment(params.id, 'id')}`,
+    method: 'DELETE',
+    headers: (params) => ({
+      Authorization: `Bearer ${params.apiKey}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    }),
+  },
+
+  transformResponse: async (response) => {
+    const data = await response.json()
+    return {
+      success: true,
+      output: {
+        deleted: data.deleted,
+        id: data.id,
+      },
+    }
+  },
+
+  outputs: {
+    deleted: {
+      type: 'boolean',
+      description: 'Whether the product was deleted',
+    },
+    id: {
+      type: 'string',
+      description: 'The ID of the deleted product',
+    },
+  },
+}

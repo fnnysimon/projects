@@ -1,0 +1,177 @@
+import { jsonResponse } from '@sim/testing/helpers/http'
+import {
+  inputValidationMock,
+  inputValidationMockFns,
+} from '@sim/testing/mocks/input-validation.mock'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+vi.mock('@/lib/core/security/input-validation.server', () => inputValidationMock)
+
+const { mockSecureFetchWithValidation: secureFetch } = inputValidationMockFns
+
+import {
+  AzureDataExplorerOperationError,
+  requestAzureDataExplorer,
+} from '@/lib/internal/azure-data-explorer/client'
+
+const BASE_INPUT = {
+  clusterUri: 'https://mycluster.eastus.kusto.windows.net',
+  tenantId: 'tenant-1',
+  clientId: 'client-1',
+  clientSecret: 'secret-1',
+  endpoint: 'query' as const,
+  database: 'Samples',
+  csl: 'print Test="Hello, World!"',
+}
+
+function queryResponse(severity = 4) {
+  return {
+    Tables: [
+      {
+        TableName: 'Table_0',
+        Columns: [{ ColumnName: 'Value', DataType: 'String', ColumnType: 'string' }],
+        Rows: [['metadata']],
+      },
+      {
+        TableName: 'Table_1',
+        Columns: [{ ColumnName: 'Test', DataType: 'String', ColumnType: 'string' }],
+        Rows: [['Hello, World!']],
+      },
+      {
+        TableName: 'Table_2',
+        Columns: [
+          { ColumnName: 'Severity', DataType: 'Int32', ColumnType: 'int' },
+          { ColumnName: 'StatusDescription', DataType: 'String', ColumnType: 'string' },
+        ],
+        Rows: [[severity, severity <= 2 ? 'Query failed' : 'Query completed']],
+      },
+      {
+        TableName: 'Table_3',
+        Columns: [{ ColumnName: 'Ordinal' }, { ColumnName: 'Kind' }],
+        Rows: [
+          [0, 'QueryProperties'],
+          [1, 'QueryResult'],
+          [2, 'QueryStatus'],
+        ],
+      },
+    ],
+  }
+}
+
+describe('requestAzureDataExplorer', () => {
+  beforeEach(() => {
+    secureFetch
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-1', expires_in: 3600 }))
+      .mockResolvedValueOnce(jsonResponse(queryResponse()))
+  })
+
+  it('preserves the token audience, read-only header, and primary-table projection', async () => {
+    const output = await requestAzureDataExplorer(
+      { ...BASE_INPUT, clientSecret: 'unique-1', readOnly: true },
+      'request-1'
+    )
+
+    expect(secureFetch.mock.calls[0][0]).toBe(
+      'https://login.microsoftonline.com/tenant-1/oauth2/token'
+    )
+    expect(
+      Object.fromEntries(new URLSearchParams(secureFetch.mock.calls[0][1].body))
+    ).toMatchObject({
+      client_id: 'client-1',
+      resource: 'https://mycluster.eastus.kusto.windows.net',
+    })
+    expect(secureFetch.mock.calls[1][0]).toBe(
+      'https://mycluster.eastus.kusto.windows.net/v1/rest/query'
+    )
+    expect(secureFetch.mock.calls[1][1].headers['x-ms-readonly']).toBe('true')
+    expect(output).toMatchObject({
+      tableName: 'Table_1',
+      records: [{ Test: 'Hello, World!' }],
+      rowCount: 1,
+      totalRowCount: 1,
+      truncated: false,
+    })
+  })
+
+  it('preserves partial Kusto failures reported inside an HTTP 200 response', async () => {
+    secureFetch.mockReset()
+    secureFetch
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-1', expires_in: 3600 }))
+      .mockResolvedValueOnce(jsonResponse(queryResponse(2)))
+
+    await expect(
+      requestAzureDataExplorer({ ...BASE_INPUT, clientSecret: 'unique-2' }, 'request-2')
+    ).rejects.toEqual(new AzureDataExplorerOperationError('Query failed', 400, 200))
+  })
+
+  it('caps projected rows while retaining the provider row count', async () => {
+    secureFetch.mockReset()
+    const response = queryResponse()
+    response.Tables[1].Rows = Array.from({ length: 10_050 }, (_, index) => [`row-${index}`])
+    secureFetch
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-1', expires_in: 3600 }))
+      .mockResolvedValueOnce(jsonResponse(response))
+
+    const output = await requestAzureDataExplorer(
+      { ...BASE_INPUT, clientSecret: 'unique-3' },
+      'request-3'
+    )
+
+    expect(output.rows).toHaveLength(10_000)
+    expect(output.records).toHaveLength(10_000)
+    expect(output).toMatchObject({ rowCount: 10_000, totalRowCount: 10_050, truncated: true })
+  })
+
+  it('truncates rows whose rows-plus-records projection would exceed the tool response cap', async () => {
+    secureFetch.mockReset()
+    const response = queryResponse()
+    const wide = 'x'.repeat(2048)
+    response.Tables[1].Rows = Array.from({ length: 3000 }, () => [wide])
+    secureFetch
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-1', expires_in: 3600 }))
+      .mockResolvedValueOnce(jsonResponse(response))
+
+    const output = await requestAzureDataExplorer(
+      { ...BASE_INPUT, clientSecret: 'unique-4' },
+      'request-4'
+    )
+
+    expect(output.truncated).toBe(true)
+    expect(output.totalRowCount).toBe(3000)
+    expect(output.rowCount).toBeLessThan(3000)
+    expect(Buffer.byteLength(JSON.stringify({ success: true, output }))).toBeLessThan(
+      10 * 1024 * 1024
+    )
+  })
+
+  it('returns every QueryResult table a batch produces', async () => {
+    secureFetch.mockReset()
+    const response = queryResponse()
+    response.Tables.splice(2, 0, {
+      TableName: 'Table_2',
+      Columns: [{ ColumnName: 'Second', DataType: 'String', ColumnType: 'string' }],
+      Rows: [['second result']],
+    })
+    response.Tables[4].Rows = [
+      [0, 'QueryProperties'],
+      [1, 'QueryResult'],
+      [2, 'QueryResult'],
+      [3, 'QueryStatus'],
+    ]
+    secureFetch
+      .mockResolvedValueOnce(jsonResponse({ access_token: 'token-1', expires_in: 3600 }))
+      .mockResolvedValueOnce(jsonResponse(response))
+
+    const output = await requestAzureDataExplorer(
+      { ...BASE_INPUT, clientSecret: 'unique-5' },
+      'request-5'
+    )
+
+    expect(output.records).toEqual([{ Test: 'Hello, World!' }])
+    expect(output.additionalResults).toHaveLength(1)
+    expect(output.additionalResults?.[0]).toMatchObject({
+      tableName: 'Table_2',
+      records: [{ Second: 'second result' }],
+    })
+  })
+})
