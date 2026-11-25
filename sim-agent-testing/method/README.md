@@ -12,5 +12,5 @@ Each step is validated before moving to the next one, and saved here.
 | [D. Stress-test the idea](D-stress-test-the-idea/) | Validated |
 | [E. Build the prototype](E-build-the-prototype/) | Validated |
 | [F. Check it against reality](F-check-it-against-reality/) | Validated |
-| [G. Publish (final version)](G-publish/) | In progress |
-| [H. Write it up](H-write-it-up/) | To do |
+| [G. Publish (final version)](G-publish/) | Validated |
+| [H. Write it up](H-write-it-up/) | In progress |

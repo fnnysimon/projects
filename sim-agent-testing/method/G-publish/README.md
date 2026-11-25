@@ -1,6 +1,6 @@
 # G. Publish (final version)
 
-Status: in progress · [Back to the method](../README.md)
+Status: validated · [Back to the method](../README.md)
 
 **Goal:** a final version anyone can open.
 
