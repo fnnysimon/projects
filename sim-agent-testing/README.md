@@ -19,7 +19,7 @@ Sort a bank advisor's client emails, summarise the urgent ones and log them in a
 | Step | What | Output | Status |
 |---|---|---|---|
 | 1. Discover | Build the use case end to end in Sim, screen-recorded, thinking out loud | [Discovery notes](docs/01-discovery.md) | Done |
-| 2. Spot the gap | Chosen gap: predicting an agent's cost before deploying it. Sub-steps A to H | [Method, steps A to H](method/) | In progress (E) |
+| 2. Spot the gap | Chosen gap: predicting an agent's cost before deploying it. Sub-steps A to H | [Method, steps A to H](method/) | In progress (F) |
 
 Steps 3 to 6 of the original plan (frame, build, publish, use) are now covered by the [method](method/), one folder per step.
 
@@ -27,4 +27,5 @@ Steps 3 to 6 of the original plan (frame, build, publish, use) are now covered b
 
 - [Product overview](docs/product-overview.md): what Sim does, its strengths, and the gaps to test
 - [Discovery notes](docs/01-discovery.md): the use case, the test grid and session notes
+- [Prototype](prototype/): the cost estimator (Next.js), with tests
 - [Method](method/): the cost estimator, step by step (A. Understand how Sim charges → H. Write it up), each step in its own folder with a README

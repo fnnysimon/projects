@@ -10,7 +10,7 @@ Each step is validated before moving to the next one, and saved here.
 | [B. Prove the need](B-prove-the-need/) | Validated |
 | [C. Frame it as a PM](C-frame-it-as-a-pm/) | Validated |
 | [D. Stress-test the idea](D-stress-test-the-idea/) | Validated |
-| [E. Build the prototype](E-build-the-prototype/) | In progress |
-| [F. Check it against reality](F-check-it-against-reality/) | To do |
+| [E. Build the prototype](E-build-the-prototype/) | Validated |
+| [F. Check it against reality](F-check-it-against-reality/) | In progress |
 | [G. Publish (final version)](G-publish/) | To do |
 | [H. Write it up](H-write-it-up/) | To do |

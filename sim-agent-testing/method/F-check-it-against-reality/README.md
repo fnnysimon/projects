@@ -1,6 +1,6 @@
 # F. Check it against reality
 
-Status: to do · [Back to the method](../README.md)
+Status: in progress · [Back to the method](../README.md)
 
 **Goal:** prove the estimate is reliable.
 
