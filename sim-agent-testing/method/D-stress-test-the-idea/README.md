@@ -1,6 +1,6 @@
 # D. Stress-test the idea
 
-Status: to do · [Back to the method](../README.md)
+Status: in progress · [Back to the method](../README.md)
 
 **Goal:** find the weak points before building.
 
