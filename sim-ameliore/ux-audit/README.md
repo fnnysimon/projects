@@ -10,6 +10,8 @@ Three Claude skills were run in order on Sim's first-use experience (Free plan o
 | 2 | `/design:design-critique` | [Design critique](02-design-critique.md) | The error is cut to 3 lines and low-contrast (about 3.1:1), the fix is far away in Settings, the key field is hidden, the failed block looks healthy, and the amber badge clashes with Sim's "legacy" badge | [Blue badge](https://github.com/fnnysimon/projects/commit/0f76f636), then [improvement 2](https://github.com/fnnysimon/projects/commit/8b2483a9) |
 | 3 | `/interaction-design` | [Interaction spec](03-interaction-spec.md) | Every state, timing, motion (with a reduced-motion version), error recovery, keyboard and screen-reader behaviour for "this model needs your own key", plus 4 open questions | [Improvement 2](https://github.com/fnnysimon/projects/commit/8b2483a9): key field on the block, one-line toast whose **Add API key** focuses that field, red outline and **Needs API key** status on the failed block, readable toast text |
 
+A before/after report with annotated screenshots of every step is in [doc/](../doc/) ([HTML](../doc/sim-ameliore-report.html), [PDF](../doc/sim-ameliore-report.pdf)).
+
 Screenshots of the live product used as evidence are in [`screenshots/`](screenshots/). The full list of changed files is in [DISCLAIMER.md](../DISCLAIMER.md#what-i-changed-from-the-original).
 
 ## Status
