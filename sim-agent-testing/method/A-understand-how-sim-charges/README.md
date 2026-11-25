@@ -1,6 +1,6 @@
 # A. Understand how Sim charges
 
-Status: awaiting validation · [Back to the method](../README.md)
+Status: validated · [Back to the method](../README.md)
 
 Goal: understand what makes up the cost of a run, what changes with BYOK, and who in a company cares about that cost.
 

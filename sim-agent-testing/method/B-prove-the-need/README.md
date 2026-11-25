@@ -1,6 +1,6 @@
 # B. Prove the need
 
-Status: to do · [Back to the method](../README.md)
+Status: in progress · [Back to the method](../README.md)
 
 **Goal:** show that estimating cost before deploying is a real need, not only ours.
 

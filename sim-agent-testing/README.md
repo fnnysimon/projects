@@ -19,7 +19,7 @@ Sort a bank advisor's client emails, summarise the urgent ones and log them in a
 | Step | What | Output | Status |
 |---|---|---|---|
 | 1. Discover | Build the use case end to end in Sim, screen-recorded, thinking out loud | [Discovery notes](docs/01-discovery.md) | Done |
-| 2. Spot the gap | Chosen gap: predicting an agent's cost before deploying it. Sub-steps A to H | [Method, steps A to H](method/) | In progress (A) |
+| 2. Spot the gap | Chosen gap: predicting an agent's cost before deploying it. Sub-steps A to H | [Method, steps A to H](method/) | In progress (B) |
 
 Steps 3 to 6 of the original plan (frame, build, publish, use) are now covered by the [method](method/), one folder per step.
 

@@ -6,8 +6,8 @@ Each step is validated before moving to the next one, and saved here.
 
 | Step | Status |
 |---|---|
-| [A. Understand how Sim charges](A-understand-how-sim-charges/) | Awaiting validation |
-| [B. Prove the need](B-prove-the-need/) | To do |
+| [A. Understand how Sim charges](A-understand-how-sim-charges/) | Validated |
+| [B. Prove the need](B-prove-the-need/) | In progress |
 | [C. Frame it as a PM](C-frame-it-as-a-pm/) | To do |
 | [D. Stress-test the idea](D-stress-test-the-idea/) | To do |
 | [E. Build the prototype](E-build-the-prototype/) | To do |
