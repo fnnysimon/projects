@@ -6,6 +6,31 @@ Status: validated · [Back to the method](../README.md)
 
 **In one line:** the estimator got **the total per run right (+4%)** and **Sim's bill exactly right**. It **overestimated the model's part by 120%**, because it guessed the answer length. Because the base fee dominates, that error barely moves the total.
 
+## What it delivered, in numbers
+
+Measured against the success metrics set in [step C](../C-frame-it-as-a-pm/#success-metrics).
+
+| Metric | Target | Result | Met? |
+|---|---|---|---|
+| **Accuracy of the total cost per run** (Sim + provider) | Within ±20% | **+4%** ($0.00536 estimated vs $0.00516 real) | ✅ |
+| Accuracy of Sim's bill | — | **0%** (1 credit per run, 6 of 6 runs) | ✅ |
+| Accuracy of the input tokens (characters ÷ 4) | Within ±20% | **+8% on average** (+2% to +15%) | ✅ |
+| Accuracy of the output tokens (guessed) | Within ±20% | **+177%** (guessed 120; real 22 to 90) | ❌ |
+| Accuracy of the model's cost (provider bill) | Within ±20% | **+120%** | ❌ |
+| Real cost inside the estimated range | Every run | **1 of 6 runs** | ❌ |
+| **Shorter path** to a monthly figure | At least −20% | **−57%** (7 actions → 3; no run, no credits, no key) | ✅ |
+| Biggest cost driver named | 100% of estimates | **100%**: "the base fee is 97% of the cost" | ✅ |
+| Readable without Sim (3 test readers) | 3 of 3 | **Not tested yet** | ⏳ |
+| Classification by the agent | — | **6 of 6 correct** (2 urgent, 3 normal, 1 spam) | ✅ |
+| Product gaps found in Sim | — | **3 new** (failed runs charged, BYOK cost logged as $0, retired model still offered) | ✅ |
+| Cost of this check | Stay on the free plan | **15 free Sim credits** (6 runs + 9 failed attempts) and **$0** on Google's free tier | ✅ |
+
+**What the numbers mean**
+
+- **Counting from characters works for the text the model reads.** The estimate was 2% to 15% too high, 8% on average.
+- **The weak point is the length of the answer.** I guessed 120 tokens; the real answers were 22 to 90. Urgent emails get a 3-line summary and the others don't, so a single guess can't be right.
+- **The total is right only because Sim's base fee is 97% of the cost** for this small agent. For a large agent, a 120% error on the AI part would break the ±20% target.
+
 ## Setup
 
 | | |
