@@ -1,8 +1,23 @@
 > [!WARNING]
 > **SIM amélioré: unofficial test copy, NOT affiliated with Sim Studio.**
 > This is a personal practice project by an independent designer, made to test UX/UI improvement ideas on Sim's open-source code. It is not endorsed by or connected to Sim Studio or its team. Original project: [simstudioai/sim](https://github.com/simstudioai/sim) (Apache 2.0). See [DISCLAIMER.md](DISCLAIMER.md) for details and the list of changes.
->
-> **UX work done here:** a UX discovery report, a design critique and an interaction spec, and the code they led to. Start at [ux-audit/](ux-audit/), or read the before/after report in [doc/](doc/sim-ameliore-report.pdf).
+
+## 📄 Before/after report: [read the PDF](doc/sim-ameliore-report.pdf)
+
+**From a dead end at the first run to a one-click fix on the block.** On Sim's Free plan, a new user's first run fails, and every way out leads to a paywall. Three Claude skills were used to fix that, one after the other. The 12-page report shows each step with annotated before/after screenshots.
+
+| # | Skill | What it changed |
+|---|---|---|
+| 1 | `/ux-superpowers` | [UX discovery report](ux-audit/01-ux-discovery-report.md), then an honest model picker and an error that offers the free fix |
+| 2 | `/design:design-critique` | [Design critique](ux-audit/02-design-critique.md), then a blue "Needs your key" badge instead of amber |
+| 3 | `/interaction-design` | [Interaction spec](ux-audit/03-interaction-spec.md), then the fix next to the failure: one-line notification, **Add API key** that opens the key field, red outline and **Needs API key** status on the failed block |
+
+| Before (sim.ai) | After (this repo) |
+|---|---|
+| <img src="doc/screenshots/ix-toast-b.png" alt="Before: the notification cuts the error to 3 grey lines and offers Fix in Chat" width="400"> | <img src="doc/screenshots/ix-toast-a.png" alt="After: one line in readable text, with an Add API key button" width="400"> |
+| <img src="doc/screenshots/ix-block-b.png" alt="Before: the failed block looks healthy" width="400"> | <img src="doc/screenshots/ix-block-a.png" alt="After: red outline and a Needs API key status on the failed block" width="400"> |
+
+**Full report:** [PDF](doc/sim-ameliore-report.pdf) · [HTML](doc/sim-ameliore-report.html) (download it, then open it in a browser) · [All UX documents](ux-audit/) · [List of changed files](DISCLAIMER.md#what-i-changed-from-the-original)
 
 ---
 
