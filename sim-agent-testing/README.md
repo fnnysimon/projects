@@ -18,14 +18,13 @@ Sort a bank advisor's client emails, summarise the urgent ones and log them in a
 
 | Step | What | Output | Status |
 |---|---|---|---|
-| 1. Discover | Build the use case end to end in Sim, screen-recorded, thinking out loud | [Discovery notes](docs/01-discovery.md) | In progress |
-| 2. Spot the gap | List what Sim can and cannot do; check GitHub issues for other users with the same need | `docs/02-gap.md` | To do |
-| 3. Frame | One-sentence problem, target user, success metric, one-page spec | `docs/03-spec.md` | To do |
-| 4. Build | Working prototype of the feature, inside Sim or next to it through its API | `prototype/` | To do |
-| 5. Publish | Demo, README, deployed link | This README | To do |
-| 6. Use | Short case study and outreach to Sim | `docs/06-case-study.md` | To do |
+| 1. Discover | Build the use case end to end in Sim, screen-recorded, thinking out loud | [Discovery notes](docs/01-discovery.md) | Done |
+| 2. Spot the gap | Chosen gap: predicting an agent's cost before deploying it. Sub-steps A to H | [Method, steps A to H](method/) | In progress (A) |
+
+Steps 3 to 6 of the original plan (frame, build, publish, use) are now covered by the [method](method/), one folder per step.
 
 ## Contents
 
 - [Product overview](docs/product-overview.md): what Sim does, its strengths, and the gaps to test
 - [Discovery notes](docs/01-discovery.md): the use case, the test grid and session notes
+- [Method](method/): the cost estimator, step by step (A. Understand how Sim charges → H. Write it up), each step in its own folder with a README
