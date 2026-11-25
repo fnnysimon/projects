@@ -2,6 +2,13 @@
 
 Chosen gap: in Sim, the cost of a run is only visible after the run. There is no way to answer "what will this agent cost per month?" before deploying it.
 
+## 📄 Read the case study
+
+**[→ Open the case study (PDF, 16 pages)](H-write-it-up/report/case-study.pdf)** — a proposed solution to the "cost review" problem of AI agents: the problem, the design decision, two iterations with before/after screenshots, and the numbers (user path −57%, total cost within 0% to 4% of real runs).
+
+[![Case study cover: Agent Cost Preview — Process & Iteration](H-write-it-up/report/cover.png)](H-write-it-up/report/case-study.pdf)
+
+
 Each step is validated before moving to the next one, and saved here.
 
 | Step | Status |

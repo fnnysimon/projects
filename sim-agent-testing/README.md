@@ -4,6 +4,13 @@ A product exploration of [Sim](https://sim.ai) (YC P25), the open-source workspa
 
 Unaffiliated exercise.
 
+## 📄 Read the case study
+
+**[→ Open the case study (PDF, 16 pages)](method/H-write-it-up/report/case-study.pdf)** — a proposed solution to the "cost review" problem of AI agents: the problem, the design decision, two iterations with before/after screenshots, and the numbers (user path −57%, total cost within 0% to 4% of real runs).
+
+[![Case study cover: Agent Cost Preview — Process & Iteration](method/H-write-it-up/report/cover.png)](method/H-write-it-up/report/case-study.pdf)
+
+
 ## Starting hypothesis
 
 Sim covers the whole agent lifecycle: build, deploy (with versioned snapshots), run and monitor. One step looks missing: **checking that an agent behaves correctly before it goes live**. In a regulated field such as banking, you cannot deploy an agent that sorts client emails without knowing how often it gets them wrong.

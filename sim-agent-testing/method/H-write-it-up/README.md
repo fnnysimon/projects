@@ -7,6 +7,10 @@ Status: validated · [Back to the method](../README.md)
 > Today, nobody can review what an agent will cost before it goes live: in Sim, the cost only shows after each run. The Agent cost preview is my proposal to fill that gap.
 > **Live:** [costly-silk.vercel.app](https://costly-silk.vercel.app) · **Case study:** [report/case-study.pdf](report/case-study.pdf)
 
+**[→ Open the case study (PDF, 16 pages)](report/case-study.pdf)** · [HTML version](report/case-study.html)
+
+[![Case study cover](report/cover.png)](report/case-study.pdf)
+
 **Goal:** turn the work into a story recruiters read in two minutes.
 
 ## 1. Case study
