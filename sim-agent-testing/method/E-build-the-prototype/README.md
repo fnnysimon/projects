@@ -15,6 +15,30 @@ Status: validated · [Back to the method](../README.md)
 | 3. Logic rewritten | Claude Code | Pure functions in `lib/`, separate from the page, with 11 tests against the worked examples of steps A and D |
 | 4. Page rewired | Claude Code | Kept v0's layout, reordered the results as V2 asks (driver first), removed unused dependencies, added the JSON import |
 
+## The v0 draft vs the final version
+
+- **v0 chat:** [v0.app/chat/tul24CKwLZH](https://v0.app/chat/tul24CKwLZH) (private: opens only for the account that created it). Its live preview link expires after a few hours, so the screenshots below are the record.
+- **Final version:** runs locally from [prototype/](../../prototype/); a public link comes in step G (Vercel).
+
+**v0 draft** (prices, presets and layout from the brief; results start with a table of credits)
+
+![v0 draft, top of the page](screenshots/v0-draft-top.jpg)
+
+![v0 draft, breakdown, what-if, plan fit and summary](screenshots/v0-draft-bottom.jpg)
+
+**Final version** (same layout; results start with what drives the cost, then the monthly figure and its range)
+
+![Final version, top of the page](screenshots/final-top.jpg)
+
+| | v0 draft | Final version |
+|---|---|---|
+| First thing in the results | A table of credits and dollars (low / expected / high) | The driver sentence, then one monthly figure with its range |
+| BYOK monthly total | Leaves out the provider bill | Two bills, Sim credits and provider dollars, shown together |
+| Calibration | Same token counts given to every block | Real tokens spread across blocks in proportion |
+| "Half the loop iterations" | Shown even with no loop | Only shown when there is a loop |
+| Workflow export import | Missing | Optional JSON import |
+| Tests | None | 11 |
+
 ## What the page does
 
 **3 actions:** 1. pick a preset or describe the blocks → 2. enter runs per month → 3. read and copy the summary.
