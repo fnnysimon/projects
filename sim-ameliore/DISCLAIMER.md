@@ -19,6 +19,8 @@ Apache 2.0 asks that changed files say so. Changes so far:
    - `.github/dependabot.yml` renamed to `.github/dependabot.yml.disabled`
    - `.github/CODEOWNERS` renamed to `.github/CODEOWNERS.disabled` (so the Sim team is never asked to review anything here)
 
+3. Added [`ux-audit/`](ux-audit/): a UX discovery report on Sim's first use (free plan on sim.ai, 25 Nov 2026), with screenshots. No product code changed yet.
+
 Any UX/UI improvements I make will be listed here, with before/after screenshots.
 
 If you want the real product, go to [sim.ai](https://sim.ai) or [github.com/simstudioai/sim](https://github.com/simstudioai/sim).
