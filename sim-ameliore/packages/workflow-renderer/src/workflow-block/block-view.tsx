@@ -250,6 +250,11 @@ export interface WorkflowBlockViewProps {
   canFixSunset?: boolean
   onFixSunset?: () => void
 
+  /** Red "Needs API key" badge after a run the plan refused for a missing key — editor-only.
+   * Clicking invokes `onAddApiKey` (omit it for viewers who cannot edit). */
+  needsApiKey?: boolean
+  onAddApiKey?: () => void
+
   /** Child-workflow deploy badge state — editor-only; omit in read-only contexts. */
   isWorkflowSelector?: boolean
   childWorkflowId?: string
@@ -355,6 +360,8 @@ export function WorkflowBlockView({
   sunsetTooltip,
   canFixSunset,
   onFixSunset,
+  needsApiKey,
+  onAddApiKey,
   isWorkflowSelector,
   childWorkflowId,
   childIsDeployed,
@@ -818,6 +825,40 @@ export function WorkflowBlockView({
                 <Tooltip.Content>
                   <span className='text-sm'>
                     {canFixSunset ? sunsetTooltip : 'Edit access required to fix'}
+                  </span>
+                </Tooltip.Content>
+              </Tooltip.Root>
+            )}
+            {needsApiKey && (
+              <Tooltip.Root>
+                <Tooltip.Trigger asChild>
+                  <Badge
+                    variant='red'
+                    className={onAddApiKey ? 'cursor-pointer' : 'cursor-not-allowed'}
+                    dot
+                    role={onAddApiKey ? 'button' : undefined}
+                    tabIndex={onAddApiKey ? 0 : undefined}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onAddApiKey?.()
+                    }}
+                    onKeyDown={
+                      onAddApiKey
+                        ? (e) => {
+                            e.stopPropagation()
+                            handleKeyboardActivation(e, onAddApiKey)
+                          }
+                        : undefined
+                    }
+                  >
+                    Needs API key
+                  </Badge>
+                </Tooltip.Trigger>
+                <Tooltip.Content>
+                  <span className='text-sm'>
+                    {onAddApiKey
+                      ? 'The last run needs your own API key on the Free plan. Click to add it.'
+                      : 'Edit access required to fix'}
                   </span>
                 </Tooltip.Content>
               </Tooltip.Root>

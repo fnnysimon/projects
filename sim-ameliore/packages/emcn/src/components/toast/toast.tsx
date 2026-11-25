@@ -461,7 +461,7 @@ function ToastItem({ toast: t, geometry, reduceMotion, onDismiss, onMeasure }: T
             expanded={hovered}
             clampLines={3}
             lineHeightPx={18}
-            className='text-[var(--text-muted)] text-small leading-[18px]'
+            className='text-[var(--text-body)] text-small leading-[18px]'
             reduceMotion={reduceMotion}
           />
         ) : null}

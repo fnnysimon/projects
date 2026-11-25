@@ -86,6 +86,7 @@ export function useBlockVisual({
         diffStatus: isPreview ? undefined : diffStatus,
         isPreviewSelection: isPreview && isPreviewSelected,
         isSelected: isPreview || isEmbedded ? false : isSelected,
+        hasRunError: runPathStatus === 'error',
       }),
     [
       isExecuting,
@@ -97,6 +98,7 @@ export function useBlockVisual({
       isEmbedded,
       isPreviewSelected,
       isSelected,
+      runPathStatus,
     ]
   )
 

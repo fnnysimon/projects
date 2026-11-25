@@ -1,25 +1,15 @@
-import { useCallback, useMemo } from 'react'
+import { useCallback, useEffect, useMemo } from 'react'
+import { modelNeedsOwnKey } from '@/lib/billing/client/own-key'
 import { useDeploymentShape } from '@/lib/core/config/deployment-shape'
 import { useOptionalWorkspaceHostContext } from '@/app/workspace/[workspaceId]/providers/workspace-host-provider'
 import { useBYOKKeys } from '@/hooks/queries/byok-keys'
-import { getHostedModels } from '@/providers/models'
-import { getProviderFromModel } from '@/providers/utils'
-
-const HOSTED_MODEL_IDS = new Set(getHostedModels().map((model) => model.toLowerCase()))
-
-function getModelProvider(model: string): string | null {
-  try {
-    return getProviderFromModel(model)
-  } catch {
-    return null
-  }
-}
+import { useModelKeyAccessStore } from '@/stores/model-key-access/store'
 
 /**
- * Whether a model can only run with the workspace's own API key. Mirrors the server rule in
- * `resolveHostedModelKey`: on hosted Sim with billing, a free-plan workspace may not use Sim's
- * key for a catalogued model, so it needs a BYOK key for that model's provider. Paid plans,
- * self-hosted deployments, and models Sim does not host are never flagged.
+ * Publishes the workspace's hosted-key access (plan gate and BYOK providers) to
+ * {@link useModelKeyAccessStore}, and returns whether a model can only run with the workspace's
+ * own key. Paid plans, self-hosted deployments, and models Sim does not host are never flagged.
+ * While the BYOK list loads, nothing is flagged: a missing badge is safer than a wrong one.
  */
 export function useModelNeedsOwnKey(): (model: string) => boolean {
   const { hosted, billingEnabled } = useDeploymentShape()
@@ -27,19 +17,20 @@ export function useModelNeedsOwnKey(): (model: string) => boolean {
   const isGated = Boolean(
     hosted && billingEnabled && hostContext && !hostContext.ownerBilling.isPaid
   )
-  const { data } = useBYOKKeys(isGated && hostContext ? hostContext.workspace.id : '')
+  const { data, isSuccess } = useBYOKKeys(isGated && hostContext ? hostContext.workspace.id : '')
 
   const keyedProviders = useMemo(
-    () => new Set<string>((data?.keys ?? []).map((key) => key.providerId)),
+    () => (data?.keys ?? []).map((key) => key.providerId as string),
     [data]
   )
+  const isKnownGated = isGated && isSuccess
+
+  useEffect(() => {
+    useModelKeyAccessStore.getState().setAccess({ isGated: isKnownGated, keyedProviders })
+  }, [isKnownGated, keyedProviders])
 
   return useCallback(
-    (model: string) => {
-      if (!isGated || !HOSTED_MODEL_IDS.has(model.toLowerCase())) return false
-      const provider = getModelProvider(model)
-      return provider !== null && !keyedProviders.has(provider)
-    },
-    [isGated, keyedProviders]
+    (model: string) => modelNeedsOwnKey(model, { isGated: isKnownGated, keyedProviders }),
+    [isKnownGated, keyedProviders]
   )
 }

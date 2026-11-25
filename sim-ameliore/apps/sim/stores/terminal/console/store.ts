@@ -19,6 +19,7 @@ import { getQueryClient } from '@/app/_shell/providers/query-provider'
 import type { NormalizedBlockOutput } from '@/executor/types'
 import { type GeneralSettings, generalSettingsKeys } from '@/hooks/queries/current-user-data'
 import { useExecutionStore } from '@/stores/execution'
+import { focusBlockField } from '@/stores/panel'
 import {
   CONSOLE_STORAGE_VERSION,
   consolePersistence,
@@ -37,6 +38,7 @@ import {
   safeConsoleStringify,
   trimWorkflowConsoleEntries,
 } from '@/stores/terminal/console/utils'
+import { useWorkflowRegistry } from '@/stores/workflows/registry/store'
 
 const logger = createLogger('TerminalConsoleStore')
 const EMPTY_CONSOLE_ENTRIES: ConsoleEntry[] = []
@@ -275,6 +277,7 @@ interface NotifyBlockErrorParams {
   error: unknown
   blockName: string
   blockId: string
+  workflowId?: string
   executionId?: string
   logContext: Record<string, unknown>
 }
@@ -292,19 +295,41 @@ const recentErrorNotifications = new Map<string, number>()
 
 const WORKSPACE_ID_IN_PATH = /^\/workspace\/([^/]+)/
 
+/** The whole toast for a free-plan refusal: the fix is the action, so one line is enough. */
+const HOSTED_KEY_TOAST_DESCRIPTION = 'Needs your own API key on the Free plan.'
+
+interface BlockErrorTarget {
+  blockId: string
+  workflowId?: string
+}
+
+function openWorkspaceKeySettings(): void {
+  const workspaceId = WORKSPACE_ID_IN_PATH.exec(window.location.pathname)?.[1]
+  if (workspaceId) window.location.assign(getWorkspaceSettingsHref(workspaceId, 'byok'))
+}
+
 /**
- * The one action a block error toast offers. A free-plan hosted-key refusal links to the BYOK
- * settings, because sending it to chat (itself a paid feature) would lead to a second paywall.
+ * Puts the cursor in the failed block's API key field when that block is on the open canvas;
+ * otherwise, or if the field never appears, opens the workspace's BYOK settings.
  */
-function getBlockErrorAction(errorMessage: string, copilotMessage: string) {
+async function addApiKeyForBlock({ blockId, workflowId }: BlockErrorTarget): Promise<void> {
+  const isOnCanvas =
+    Boolean(workflowId) && useWorkflowRegistry.getState().activeWorkflowId === workflowId
+  if (isOnCanvas && (await focusBlockField(blockId, 'apiKey'))) return
+  openWorkspaceKeySettings()
+}
+
+/**
+ * The one action a block error toast offers. A free-plan hosted-key refusal leads to the API
+ * key field, because sending it to chat (itself a paid feature) would lead to a second paywall.
+ */
+function getBlockErrorAction(
+  errorMessage: string,
+  copilotMessage: string,
+  target: BlockErrorTarget
+) {
   if (isHostedKeyPaidPlanMessage(errorMessage)) {
-    const workspaceId = WORKSPACE_ID_IN_PATH.exec(window.location.pathname)?.[1]
-    if (workspaceId) {
-      return {
-        label: 'Add API key',
-        onClick: () => window.location.assign(getWorkspaceSettingsHref(workspaceId, 'byok')),
-      }
-    }
+    return { label: 'Add API key', onClick: () => void addApiKeyForBlock(target) }
   }
   if (!getDeploymentShape().chatEnabled) return undefined
   return {
@@ -317,6 +342,7 @@ const notifyBlockError = ({
   error,
   blockName,
   blockId,
+  workflowId,
   executionId,
   logContext,
 }: NotifyBlockErrorParams) => {
@@ -340,8 +366,10 @@ const notifyBlockError = ({
     recentErrorNotifications.set(dedupKey, now)
 
     toast.error(displayName, {
-      description: errorMessage,
-      action: getBlockErrorAction(errorMessage, copilotMessage),
+      description: isHostedKeyPaidPlanMessage(errorMessage)
+        ? HOSTED_KEY_TOAST_DESCRIPTION
+        : errorMessage,
+      action: getBlockErrorAction(errorMessage, copilotMessage, { blockId, workflowId }),
     })
   } catch (notificationError) {
     logger.error('Failed to create block error notification', {
@@ -404,6 +432,7 @@ export const useTerminalConsoleStore = create<ConsoleStore>()(
           error: createdEntry.error,
           blockName: createdEntry.blockName || 'Unknown Block',
           blockId: createdEntry.blockId,
+          workflowId: createdEntry.workflowId,
           executionId: createdEntry.executionId,
           logContext: { entryId: createdEntry.id },
         })
@@ -702,6 +731,7 @@ export const useTerminalConsoleStore = create<ConsoleStore>()(
           error: update.error,
           blockName: update.blockName || matchingEntry?.blockName || 'Unknown Block',
           blockId,
+          workflowId: matchingEntry?.workflowId,
           executionId,
           logContext: { blockId },
         })

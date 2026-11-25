@@ -13,6 +13,8 @@ interface BlockRingOptions {
   isPreviewSelection?: boolean
   /** Whether the block is selected via shift-click or selection box (shows blue ring) */
   isSelected?: boolean
+  /** Whether the block's last run failed and it still needs the user's fix (shows red ring) */
+  hasRunError?: boolean
 }
 
 /**
@@ -31,11 +33,14 @@ export function getBlockRingStyles(options: BlockRingOptions): {
     diffStatus,
     isPreviewSelection,
     isSelected,
+    hasRunError = false,
   } = options
 
   const isSelectionHighlighted = isEditorOpen || isSelected || isPreviewSelection
-  const hasStatusRing =
-    !isExecuting && (isPending || diffStatus === 'new' || diffStatus === 'edited' || isDeletedBlock)
+  const hasOtherStatus =
+    isPending || diffStatus === 'new' || diffStatus === 'edited' || isDeletedBlock
+  const showsRunError = !isExecuting && hasRunError && !hasOtherStatus
+  const hasStatusRing = !isExecuting && (hasOtherStatus || showsRunError)
   const hasRing = Boolean(isSelectionHighlighted || hasStatusRing)
 
   const ringClassName = cn(
@@ -64,7 +69,8 @@ export function getBlockRingStyles(options: BlockRingOptions): {
       !isPending &&
       !isDeletedBlock &&
       diffStatus === 'edited' &&
-      'ring-[var(--warning)]'
+      'ring-[var(--warning)]',
+    !isSelectionHighlighted && showsRunError && 'ring-[var(--text-error)]'
   )
 
   return { hasRing, ringClassName }

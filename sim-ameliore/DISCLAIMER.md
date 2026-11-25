@@ -27,6 +27,13 @@ Apache 2.0 asks that changed files say so. Changes so far:
    - Clicking the model field selects its text, so typing a search replaces the current model instead of appending to it
    - Updated the two tests and the docs line that quote the old wording
 5. Added a [design critique](ux-audit/02-design-critique.md) of that area and an [interaction spec](ux-audit/03-interaction-spec.md) for the next step (API key field on the block, one-line toast that focuses it, error state on the failed block). Following the critique, the badge is blue rather than amber, so it doesn't clash with Sim's "legacy" badge.
+6. **Improvement 2: the fix sits next to the failure** (from the critique's critical and moderate findings and the interaction spec):
+   - On the Free plan, the Agent block shows its **API key** field for models Sim hosts, so a key can be added right on the block. A key already on the block also keeps the field visible, so the key is never silently dropped (`apps/sim/blocks/utils.ts`, `apps/sim/stores/model-key-access/store.ts`, `apps/sim/lib/billing/client/own-key.ts`)
+   - The failure toast is one line, "Needs your own API key on the Free plan." Its **Add API key** button opens the block and puts the cursor in the key field, with a short red highlight (none with reduced motion). It falls back to Settings > BYOK when the block isn't on the open canvas (`apps/sim/stores/terminal/console/store.ts`, `apps/sim/stores/panel/editor/focus-field.ts`)
+   - A failed block keeps a red outline until the next run. When the failure was the missing key, it also shows a red **Needs API key** status, which opens the key field when clicked or activated with the keyboard (`.../utils/block-ring.ts`, `.../hooks/use-block-visual.ts`, `.../workflow-block/workflow-block.tsx`, `packages/workflow-renderer/.../block-view.tsx`)
+   - Toast descriptions use `--text-body` instead of `--text-muted`, so they pass contrast (about 3.1:1 before in dark mode). This changes every toast in the design system (`packages/emcn/src/components/toast/toast.tsx`)
+   - Not built yet from the spec: the field's height animation, a provider-specific placeholder, and keeping the model search text
+   - Checked with type-check, biome and the existing tests. Not yet checked in the running app: running it locally needs PostgreSQL.
 
 Any UX/UI improvements I make will be listed here, with before/after screenshots.
 

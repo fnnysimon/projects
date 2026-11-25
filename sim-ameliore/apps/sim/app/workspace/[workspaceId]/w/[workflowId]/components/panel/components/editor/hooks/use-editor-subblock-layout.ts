@@ -13,6 +13,7 @@ import {
 import type { BlockConfig, SubBlockConfig } from '@/blocks/types'
 import { usePermissionConfig } from '@/hooks/use-permission-config'
 import { useReactiveConditions } from '@/hooks/use-reactive-conditions'
+import { useModelKeyAccessStore } from '@/stores/model-key-access/store'
 import { useWorkflowDiffStore } from '@/stores/workflow-diff'
 import { mergeSubblockState } from '@/stores/workflows/utils'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
@@ -43,6 +44,9 @@ export function useEditorSubblockLayout(
     useCallback((state) => state.blocks?.[blockId]?.data, [blockId])
   )
   const { config: permissionConfig } = usePermissionConfig()
+  // The API key condition reads this store, so a plan or BYOK change re-evaluates visibility.
+  const isKeyAccessGated = useModelKeyAccessStore((state) => state.isGated)
+  const keyedProviders = useModelKeyAccessStore((state) => state.keyedProviders)
 
   // Evaluate reactive conditions (hooks-based, must be called before useMemo)
   const hiddenByReactiveCondition = useReactiveConditions(
@@ -154,5 +158,7 @@ export function useEditorSubblockLayout(
     blockDataFromStore,
     hiddenByReactiveCondition,
     permissionConfig.disableSkills,
+    isKeyAccessGated,
+    keyedProviders,
   ])
 }

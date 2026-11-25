@@ -82,6 +82,7 @@ import {
 } from '@/app/workspace/[workspaceId]/providers/workflow-scope-provider'
 import { useUserPermissionsContext } from '@/app/workspace/[workspaceId]/providers/workspace-permissions-provider'
 import { ActionBar } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/action-bar/action-bar'
+import { useModelNeedsOwnKey } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-model-needs-own-key'
 import {
   useBlockProperties,
   useChildWorkflow,
@@ -124,7 +125,7 @@ import { useReactiveConditions } from '@/hooks/use-reactive-conditions'
 import { useSelectorDisplayName } from '@/hooks/use-selector-display-name'
 import { getModelSunsetStatus } from '@/providers/models'
 import { useIsCurrentWorkflowExecuting } from '@/stores/execution'
-import { usePanelEditorStore, usePanelStore } from '@/stores/panel'
+import { focusBlockField, usePanelEditorStore, usePanelStore } from '@/stores/panel'
 import { useVariablesStore } from '@/stores/variables/store'
 import { useSubBlockStore } from '@/stores/workflows/subblock/store'
 import { useWorkflowStore } from '@/stores/workflows/workflow/store'
@@ -829,6 +830,11 @@ export const WorkflowBlock = memo(function WorkflowBlock({
 
   const sunset = getBlockSunset(config, name, blockSubBlockValues.model, currentWorkflow.isDiffMode)
 
+  const modelNeedsOwnKey = useModelNeedsOwnKey()
+  const blockModel = blockSubBlockValues.model
+  const needsApiKey =
+    runPathStatus === 'error' && typeof blockModel === 'string' && modelNeedsOwnKey(blockModel)
+
   const onFixSunset = () => {
     if (!sunset) return
     captureEvent(posthog, 'deprecated_block_fix_clicked', {
@@ -1305,6 +1311,8 @@ export const WorkflowBlock = memo(function WorkflowBlock({
       sunsetTooltip={sunset?.tooltip}
       canFixSunset={canEditWorkflow && chatEnabled}
       onFixSunset={onFixSunset}
+      needsApiKey={needsApiKey}
+      onAddApiKey={canEditWorkflow ? () => void focusBlockField(id, 'apiKey') : undefined}
       shouldShowScheduleBadge={shouldShowScheduleBadge}
       scheduleIsDisabled={Boolean(scheduleInfo?.isDisabled)}
       onReactivateSchedule={() => {

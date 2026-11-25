@@ -1,5 +1,6 @@
 import { toError } from '@sim/utils/errors'
 import { SimAutoIcon } from '@/components/icons'
+import { isHostedModel, modelNeedsOwnKey } from '@/lib/billing/client/own-key'
 import { getDeploymentShape } from '@/lib/core/config/deployment-shape'
 import { getEnv, isTruthy } from '@/lib/core/config/env'
 import { isOllamaConfigured } from '@/lib/core/config/env-flags'
@@ -26,6 +27,7 @@ import { isPiSupportedModel } from '@/providers/pi-providers'
 import { ToolCallParamsError } from '@/providers/tool-params-error'
 import type { ProviderId } from '@/providers/types'
 import { getProviderFromModel } from '@/providers/utils'
+import { useModelKeyAccessStore } from '@/stores/model-key-access/store'
 import { useProvidersStore } from '@/stores/providers/store'
 import {
   SAVED_CREDENTIAL_OAUTH,
@@ -351,7 +353,10 @@ export function shouldRequireApiKeyForModel(model: string): boolean {
 
   if (hosted) {
     const hostedModels = getHostedModels()
-    if (hostedModels.some((m) => m.toLowerCase() === normalizedModel)) return false
+    if (hostedModels.some((m) => m.toLowerCase() === normalizedModel)) {
+      // A free-plan workspace without a BYOK key for the provider can only run it on its own key.
+      return modelNeedsOwnKey(normalizedModel, useModelKeyAccessStore.getState())
+    }
   }
 
   if (normalizedModel.startsWith('vertex/') || normalizedModel.startsWith('bedrock/')) {
@@ -453,9 +458,25 @@ export function getModelCapabilityCondition(capableModels: string[]) {
 export function getApiKeyCondition() {
   return (values?: Record<string, unknown>) => {
     const model = typeof values?.model === 'string' ? values.model : ''
-    const shouldShow = shouldRequireApiKeyForModel(model)
+    const shouldShow =
+      shouldRequireApiKeyForModel(model) || hasBlockKeyForHostedModel(model, values?.apiKey)
     return buildModelVisibilityCondition(model, shouldShow)
   }
+}
+
+/**
+ * Whether the block carries its own key for a hosted model on hosted Sim. The server has no
+ * plan data when it evaluates conditions, so a key the user typed (because the browser showed
+ * the field on the Free plan) keeps the field active there too and is serialized with the run;
+ * a paid plan still runs on Sim's key (`resolveHostedModelKey`).
+ */
+function hasBlockKeyForHostedModel(model: string, apiKey: unknown): boolean {
+  return (
+    getDeploymentShape().hosted &&
+    isHostedModel(model) &&
+    typeof apiKey === 'string' &&
+    apiKey.trim() !== ''
+  )
 }
 
 /**
