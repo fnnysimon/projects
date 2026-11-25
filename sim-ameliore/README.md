@@ -1,6 +1,8 @@
 > [!WARNING]
 > **SIM amélioré: unofficial test copy, NOT affiliated with Sim Studio.**
 > This is a personal practice project by an independent designer, made to test UX/UI improvement ideas on Sim's open-source code. It is not endorsed by or connected to Sim Studio or its team. Original project: [simstudioai/sim](https://github.com/simstudioai/sim) (Apache 2.0). See [DISCLAIMER.md](DISCLAIMER.md) for details and the list of changes.
+>
+> **UX work done here:** a UX discovery report, a design critique and an interaction spec, and the code they led to. Start at [ux-audit/](ux-audit/).
 
 ---
 
