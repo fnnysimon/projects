@@ -27,5 +27,5 @@ Steps 3 to 6 of the original plan (frame, build, publish, use) are now covered b
 
 - [Product overview](docs/product-overview.md): what Sim does, its strengths, and the gaps to test
 - [Discovery notes](docs/01-discovery.md): the use case, the test grid and session notes
-- [Prototype](prototype/): the cost estimator (Next.js), with tests
+- [Prototype](prototype/): the cost estimator (Next.js), with tests. **Live: [costly-silk.vercel.app](https://costly-silk.vercel.app)**
 - [Method](method/): the cost estimator, step by step (A. Understand how Sim charges → H. Write it up), each step in its own folder with a README

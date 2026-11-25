@@ -1,13 +1,15 @@
 # Agent cost preview (prototype)
 
-Estimates what a [Sim](https://sim.ai) workflow will cost per month, and what drives that cost, before it is deployed. Built from the V2 spec in [step D](../method/D-stress-test-the-idea/). Unaffiliated prototype.
+**Live:** [costly-silk.vercel.app](https://costly-silk.vercel.app)
+
+Estimates what a [Sim](https://sim.ai) workflow will cost per month, and what drives that cost, before it is deployed. Built from the V2 spec in [step D](../method/D-stress-test-the-idea/), with the V3 fixes from the real runs of [step F](../method/F-check-it-against-reality/). Unaffiliated prototype.
 
 ## Run it
 
 ```
 npm install
 npm run dev     # http://localhost:3000
-npm test        # 11 tests on the cost logic
+npm test        # 14 tests on the cost logic
 ```
 
 ## Structure

@@ -18,7 +18,7 @@ Status: validated · [Back to the method](../README.md)
 ## The v0 draft vs the final version
 
 - **v0 chat:** [v0.app/chat/tul24CKwLZH](https://v0.app/chat/tul24CKwLZH) (private: opens only for the account that created it). Its live preview link expires after a few hours, so the screenshots below are the record.
-- **Final version:** runs locally from [prototype/](../../prototype/); a public link comes in step G (Vercel).
+- **Final version:** live at [costly-silk.vercel.app](https://costly-silk.vercel.app) (step G); code in [prototype/](../../prototype/).
 
 **v0 draft** (prices, presets and layout from the brief; results start with a table of credits)
 
