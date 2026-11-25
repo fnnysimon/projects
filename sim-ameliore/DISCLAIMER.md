@@ -19,7 +19,13 @@ Apache 2.0 asks that changed files say so. Changes so far:
    - `.github/dependabot.yml` renamed to `.github/dependabot.yml.disabled`
    - `.github/CODEOWNERS` renamed to `.github/CODEOWNERS.disabled` (so the Sim team is never asked to review anything here)
 
-3. Added [`ux-audit/`](ux-audit/): a UX discovery report on Sim's first use (free plan on sim.ai, 25 Nov 2026), with screenshots. No product code changed yet.
+3. Added [`ux-audit/`](ux-audit/): a UX discovery report on Sim's first use (free plan on sim.ai, 25 Nov 2026), with screenshots.
+4. **Improvement 1: honest model picker and an error that helps** (from the audit's P1 insights):
+   - The free-plan error now leads with the free fix: "&lt;model&gt; needs your own API key on the Free plan. Add one in Settings > BYOK (Bring your own key), or upgrade to use Sim's key." (`apps/sim/lib/billing/hosted-key-message.ts`, `hosted-key-access.ts`)
+   - Its toast offers **Add API key** (opens Settings > BYOK) instead of "Fix in Chat", which led to a second paywall (`apps/sim/stores/terminal/console/store.ts`)
+   - The model picker marks models a free workspace can only run with its own key with a **Needs your key** badge, in the list and on the selected model (`.../sub-block/hooks/use-model-needs-own-key.ts`, `.../sub-block/components/combobox/combobox.tsx`)
+   - Clicking the model field selects its text, so typing a search replaces the current model instead of appending to it
+   - Updated the two tests and the docs line that quote the old wording
 
 Any UX/UI improvements I make will be listed here, with before/after screenshots.
 

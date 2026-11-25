@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Combobox, type ComboboxOption, cn } from '@sim/emcn'
+import { Badge, Combobox, type ComboboxOption, cn } from '@sim/emcn'
 import { Plus } from '@sim/emcn/icons'
 import { useReactFlow } from '@xyflow/react'
 import { useDeploymentShape } from '@/lib/core/config/deployment-shape'
@@ -13,6 +13,7 @@ import { formatDisplayText } from '@/app/workspace/[workspaceId]/w/[workflowId]/
 import { SubBlockInputController } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/components/sub-block-input-controller'
 import { getWorkflowSearchLabelHighlight } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/components/workflow-search-highlight'
 import { useFetchedOptions } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-fetched-options'
+import { useModelNeedsOwnKey } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-model-needs-own-key'
 import { useSubBlockValue } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/components/sub-block/hooks/use-sub-block-value'
 import { useActiveSearchTarget } from '@/app/workspace/[workspaceId]/w/[workflowId]/components/panel/components/editor/providers/active-search-target-provider'
 import { useAccessibleReferencePrefixes } from '@/app/workspace/[workspaceId]/w/[workflowId]/hooks/use-accessible-reference-prefixes'
@@ -33,6 +34,23 @@ const ZOOM_DURATION = 0
 
 /** Shared empty list, so a selector-backed field with no static options keeps a stable identity. */
 const EMPTY_OPTIONS: ComboBoxOption[] = []
+
+const OWN_KEY_HINT = 'Free plan: add your own API key in Settings > BYOK to run this model'
+
+/** Marks a model the workspace can only run with its own API key. */
+function OwnKeyBadge() {
+  return (
+    <Badge variant='amber' size='sm' className='shrink-0' title={OWN_KEY_HINT}>
+      Needs your key
+    </Badge>
+  )
+}
+
+/** Selects the input's text on focus so typing a search replaces the current model. */
+function selectOnFocus(e: React.FocusEvent<HTMLInputElement>) {
+  const input = e.currentTarget
+  requestAnimationFrame(() => input.select())
+}
 
 const CREATE_ACTION_LABEL: Record<NonNullable<SubBlockConfig['createAction']>, string> = {
   sandbox: 'Create Sandbox',
@@ -123,6 +141,8 @@ export const ComboBox = memo(function ComboBox({
 
   // Permission-based filtering for model dropdowns
   const { isModelUsable, isLoading: isPermissionLoading } = usePermissionConfig()
+  const isModelField = subBlockId === 'model' && !config.mediaModelOptions
+  const modelNeedsOwnKey = useModelNeedsOwnKey()
 
   // Evaluate static options if provided as a function
   // Derived option lists read the block's own values (a model's valid reasoning efforts);
@@ -292,10 +312,16 @@ export const ComboBox = memo(function ComboBox({
       if (typeof option === 'string') {
         return { label: option, value: option }
       }
-      return { label: option.label, value: option.id, icon: option.icon, hidden: option.hidden }
+      return {
+        label: option.label,
+        value: option.id,
+        icon: option.icon,
+        hidden: option.hidden,
+        ...(isModelField && modelNeedsOwnKey(option.id) && { suffixElement: <OwnKeyBadge /> }),
+      }
     })
     return createOption ? [createOption, ...mapped] : mapped
-  }, [evaluatedOptions, createOption])
+  }, [evaluatedOptions, createOption, isModelField, modelNeedsOwnKey])
 
   /**
    * Extracts the value identifier from an option
@@ -459,6 +485,9 @@ export const ComboBox = memo(function ComboBox({
   }, [comboboxOptions, value])
 
   const selectedOptionIcon = selectedOption?.icon
+  const showSelectedOwnKeyBadge = Boolean(
+    isModelField && selectedOption && modelNeedsOwnKey(selectedOption.value)
+  )
 
   /**
    * Overlay content for the editable combobox
@@ -483,9 +512,22 @@ export const ComboBox = memo(function ComboBox({
             workflowSearchHighlight,
           })}
         </div>
+        {showSelectedOwnKeyBadge && (
+          <span className='ml-auto pl-2'>
+            <OwnKeyBadge />
+          </span>
+        )}
       </div>
     )
-  }, [activeSearchTarget, blockId, inputValue, accessiblePrefixes, selectedOptionIcon, subBlockId])
+  }, [
+    activeSearchTarget,
+    blockId,
+    inputValue,
+    accessiblePrefixes,
+    selectedOptionIcon,
+    subBlockId,
+    showSelectedOwnKeyBadge,
+  ])
 
   const ctrlOnChangeRef = useRef<
     ((e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>) => void) | null
@@ -527,9 +569,10 @@ export const ComboBox = memo(function ComboBox({
         onDragOverRef.current?.(e)
       }) as (e: React.DragEvent<HTMLInputElement>) => void,
       onWheel: handleWheel,
+      onFocusCapture: isModelField ? selectOnFocus : undefined,
       autoComplete: 'off' as const,
     }),
-    [handleWheel]
+    [handleWheel, isModelField]
   )
 
   // Stable onChange for SubBlockInputController

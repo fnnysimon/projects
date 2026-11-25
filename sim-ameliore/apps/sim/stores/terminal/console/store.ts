@@ -8,6 +8,8 @@ import {
   type AgentStreamToolTerminalStatus,
   settleRunningToolCallList,
 } from '@/components/agent-stream/tool-call-lifecycle'
+import { getWorkspaceSettingsHref } from '@/components/settings/navigation'
+import { isHostedKeyPaidPlanMessage } from '@/lib/billing/hosted-key-message'
 import { getDeploymentShape } from '@/lib/core/config/deployment-shape'
 import { redactApiKeys } from '@/lib/core/security/redaction'
 import { formatCsvValue, toCsvRow } from '@/lib/core/utils/csv'
@@ -288,6 +290,29 @@ interface NotifyBlockErrorParams {
 const NOTIFY_DEDUP_WINDOW_MS = 1500
 const recentErrorNotifications = new Map<string, number>()
 
+const WORKSPACE_ID_IN_PATH = /^\/workspace\/([^/]+)/
+
+/**
+ * The one action a block error toast offers. A free-plan hosted-key refusal links to the BYOK
+ * settings, because sending it to chat (itself a paid feature) would lead to a second paywall.
+ */
+function getBlockErrorAction(errorMessage: string, copilotMessage: string) {
+  if (isHostedKeyPaidPlanMessage(errorMessage)) {
+    const workspaceId = WORKSPACE_ID_IN_PATH.exec(window.location.pathname)?.[1]
+    if (workspaceId) {
+      return {
+        label: 'Add API key',
+        onClick: () => window.location.assign(getWorkspaceSettingsHref(workspaceId, 'byok')),
+      }
+    }
+  }
+  if (!getDeploymentShape().chatEnabled) return undefined
+  return {
+    label: 'Fix in Chat',
+    onClick: () => sendMothershipMessage({ content: copilotMessage }),
+  }
+}
+
 const notifyBlockError = ({
   error,
   blockName,
@@ -316,12 +341,7 @@ const notifyBlockError = ({
 
     toast.error(displayName, {
       description: errorMessage,
-      action: getDeploymentShape().chatEnabled
-        ? {
-            label: 'Fix in Chat',
-            onClick: () => sendMothershipMessage({ content: copilotMessage }),
-          }
-        : undefined,
+      action: getBlockErrorAction(errorMessage, copilotMessage),
     })
   } catch (notificationError) {
     logger.error('Failed to create block error notification', {

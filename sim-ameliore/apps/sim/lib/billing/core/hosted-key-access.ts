@@ -1,5 +1,6 @@
 import { resolveWorkspaceBillingPayer } from '@/lib/billing/core/attribution'
 import { payerHasPaidAccess } from '@/lib/billing/core/chat-access'
+import { buildHostedKeyPaidPlanMessage } from '@/lib/billing/hosted-key-message'
 import type { UsageUpgradePayer } from '@/lib/billing/usage-upgrade'
 import { isBillingEnabled, isHosted } from '@/lib/core/config/env-flags'
 import { HttpError } from '@/lib/core/utils/http-error'
@@ -13,9 +14,7 @@ export class HostedKeyRequiresPaidPlanError extends HttpError {
 
   /** @param subject - what asked for the key: a tool's name or a model id */
   constructor(subject: string) {
-    super(
-      `${subject} with Sim's hosted key is available on paid plans. Upgrade your plan, or add your own API key under Settings > BYOK.`
-    )
+    super(buildHostedKeyPaidPlanMessage(subject))
     this.name = 'HostedKeyRequiresPaidPlanError'
   }
 }

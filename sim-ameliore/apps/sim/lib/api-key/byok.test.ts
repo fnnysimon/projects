@@ -388,7 +388,7 @@ describe('getApiKeyWithBYOK for a payer without paid access', () => {
       getApiKeyWithBYOK('anthropic', HOSTED_MODEL, workspaceId, undefined, undefined, attribution)
     ).rejects.toMatchObject({
       statusCode: 402,
-      message: expect.stringContaining('available on paid plans'),
+      message: expect.stringContaining('needs your own API key on the Free plan'),
     })
     expect(mockMayUseHostedKey).toHaveBeenCalledWith(workspaceId, attribution)
     expect(mockGetRotatingApiKey).not.toHaveBeenCalled()

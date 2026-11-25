@@ -7986,7 +7986,7 @@ describe('Hosted Key Injection', () => {
       const { result, request } = await runPaidOnlyTool()
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('available on paid plans')
+      expect(result.error).toContain('needs your own API key on the Free plan')
       expect(mockPayerHasPaidAccess).toHaveBeenCalledWith(TEST_BILLING_ATTRIBUTION, {
         onBalanceUnavailable: 'deny',
       })
@@ -8053,7 +8053,7 @@ describe('Hosted Key Injection', () => {
       const { result, request } = await runPaidOnlyToolWithoutAttribution()
 
       expect(result.success).toBe(false)
-      expect(result.error).toContain('available on paid plans')
+      expect(result.error).toContain('needs your own API key on the Free plan')
       expect(mockPayerHasPaidAccess).not.toHaveBeenCalled()
       expect(mockRateLimiterFns.acquireKey).not.toHaveBeenCalled()
       expect(request).not.toHaveBeenCalled()
