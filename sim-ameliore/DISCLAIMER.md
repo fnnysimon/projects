@@ -26,6 +26,7 @@ Apache 2.0 asks that changed files say so. Changes so far:
    - The model picker marks models a free workspace can only run with its own key with a **Needs your key** badge, in the list and on the selected model (`.../sub-block/hooks/use-model-needs-own-key.ts`, `.../sub-block/components/combobox/combobox.tsx`)
    - Clicking the model field selects its text, so typing a search replaces the current model instead of appending to it
    - Updated the two tests and the docs line that quote the old wording
+5. Added a [design critique](ux-audit/02-design-critique.md) of that area and an [interaction spec](ux-audit/03-interaction-spec.md) for the next step (API key field on the block, one-line toast that focuses it, error state on the failed block). Following the critique, the badge is blue rather than amber, so it doesn't clash with Sim's "legacy" badge.
 
 Any UX/UI improvements I make will be listed here, with before/after screenshots.
 

@@ -40,7 +40,7 @@ const OWN_KEY_HINT = 'Free plan: add your own API key in Settings > BYOK to run 
 /** Marks a model the workspace can only run with its own API key. */
 function OwnKeyBadge() {
   return (
-    <Badge variant='amber' size='sm' className='shrink-0' title={OWN_KEY_HINT}>
+    <Badge variant='blue' size='sm' className='shrink-0' title={OWN_KEY_HINT}>
       Needs your key
     </Badge>
   )
