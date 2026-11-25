@@ -1,8 +1,0 @@
-{
-  "namespace": "browserUse",
-  "paramAliases": {
-    "action": {
-      "oauthCredential": "credential"
-    }
-  }
-}

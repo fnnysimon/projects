@@ -1,1 +1,0 @@
-ALTER TABLE "mothership_benchmarks" ADD COLUMN "run_as_user_id" text;

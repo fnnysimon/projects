@@ -1,1 +1,0 @@
-ALTER TABLE "table_run_dispatches" ADD COLUMN "heartbeat_at" timestamp;

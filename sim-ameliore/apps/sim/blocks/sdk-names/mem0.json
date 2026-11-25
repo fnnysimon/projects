@@ -1,8 +1,0 @@
-{
-  "namespace": "legacy.mem0",
-  "methods": {
-    "add": "addMemories",
-    "get": "getMemories",
-    "search": "searchMemories"
-  }
-}

@@ -1,9 +1,0 @@
-{
-  "namespace": "legacy.fileV3",
-  "methods": {
-    "file_append": "append",
-    "file_get": "get",
-    "file_parser_v3": "read",
-    "file_write": "write"
-  }
-}

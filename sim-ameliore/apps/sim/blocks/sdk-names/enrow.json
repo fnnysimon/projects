@@ -1,7 +1,0 @@
-{
-  "namespace": "enrow",
-  "methods": {
-    "enrow_find_email": "findEmail",
-    "enrow_verify_email": "verifyEmail"
-  }
-}

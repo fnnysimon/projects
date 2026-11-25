@@ -1,7 +1,0 @@
-{
-  "namespace": "brandfetch",
-  "methods": {
-    "get_brand": "getBrand",
-    "search": "searchBrands"
-  }
-}

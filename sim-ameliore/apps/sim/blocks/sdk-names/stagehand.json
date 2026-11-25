@@ -1,7 +1,0 @@
-{
-  "namespace": "stagehand",
-  "methods": {
-    "agent": "runAgent",
-    "extract": "extractData"
-  }
-}

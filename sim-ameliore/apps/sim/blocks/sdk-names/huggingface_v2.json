@@ -1,8 +1,0 @@
-{
-  "namespace": "huggingface",
-  "paramAliases": {
-    "action": {
-      "oauthCredential": "credential"
-    }
-  }
-}

@@ -1,8 +1,0 @@
-{
-  "namespace": "greptile",
-  "methods": {
-    "greptile_index_repo": "indexRepository",
-    "greptile_query": "query",
-    "greptile_status": "checkStatus"
-  }
-}

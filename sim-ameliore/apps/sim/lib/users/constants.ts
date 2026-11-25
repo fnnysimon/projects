@@ -1,1 +1,0 @@
-export const AUTHORIZED_APPS_PAGE_SIZE = 25

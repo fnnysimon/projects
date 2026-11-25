@@ -1,1 +1,0 @@
-export { helpScoutConnector } from './helpscout'

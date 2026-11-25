@@ -1,1 +1,0 @@
-ALTER TABLE "subscription" ADD COLUMN "last_closed_period_start" timestamp;

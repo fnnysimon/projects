@@ -1,8 +1,0 @@
-{
-  "namespace": "legacy.quiver",
-  "methods": {
-    "image_to_svg": "imageToSvg",
-    "list_models": "listModels",
-    "text_to_svg": "textToSvg"
-  }
-}

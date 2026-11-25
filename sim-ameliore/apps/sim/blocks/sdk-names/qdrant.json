@@ -1,8 +1,0 @@
-{
-  "namespace": "legacy.qdrant",
-  "methods": {
-    "fetch": "fetch",
-    "search": "search",
-    "upsert": "upsert"
-  }
-}

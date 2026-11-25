@@ -1,1 +1,0 @@
-ALTER TYPE "public"."workspace_fork_resource_type" ADD VALUE 'file_folder' BEFORE 'mcp_server';

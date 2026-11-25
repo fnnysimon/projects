@@ -1,1 +1,0 @@
-ALTER TABLE "mothership_inbox_task" ADD COLUMN "sender_authenticated" boolean DEFAULT false NOT NULL;

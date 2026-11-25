@@ -1,1 +1,0 @@
-ALTER TYPE "public"."data_drain_destination" ADD VALUE 'sentinel' BEFORE 'datadog';

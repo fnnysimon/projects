@@ -1,1 +1,0 @@
-ALTER TABLE "copilot_async_tool_calls" ADD COLUMN "execution_deadline_at" timestamp with time zone;

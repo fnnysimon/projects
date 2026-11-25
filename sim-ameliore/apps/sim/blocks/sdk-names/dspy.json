@@ -1,8 +1,0 @@
-{
-  "namespace": "dspy",
-  "methods": {
-    "chain_of_thought": "chainOfThought",
-    "predict": "predict",
-    "react": "reActAgent"
-  }
-}

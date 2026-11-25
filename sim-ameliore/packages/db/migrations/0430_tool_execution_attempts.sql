@@ -1,1 +1,0 @@
-ALTER TABLE "copilot_async_tool_calls" ADD COLUMN "execution_attempts" integer DEFAULT 0 NOT NULL;

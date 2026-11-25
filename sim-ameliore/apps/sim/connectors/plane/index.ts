@@ -1,1 +1,0 @@
-export { planeConnector } from './plane'
